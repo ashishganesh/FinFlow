@@ -1,0 +1,759 @@
+package com.example.ui.components
+
+import android.widget.Toast
+import androidx.compose.animation.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import com.example.data.Account
+import com.example.ui.ExpenseViewModel
+
+@Composable
+fun getAvatarIcon(avatar: String): ImageVector {
+    return when (avatar.lowercase()) {
+        "personal" -> Icons.Default.Person
+        "business" -> Icons.Default.Business
+        "family" -> Icons.Default.People
+        "savings" -> Icons.Default.AccountBalance
+        "travel" -> Icons.Default.Explore
+        else -> Icons.Default.AccountBalanceWallet
+    }
+}
+
+val ProfileColorList = listOf(
+    0xFF0D9488.toInt(), // Modern Teal
+    0xFFCD9BFF.toInt(), // Pastel Purple
+    0xFFE11D48.toInt(), // Rose Pink
+    0xFFF59E0B.toInt(), // Amber Orange
+    0xFF6366F1.toInt(), // Indigo Blue
+    0xFF06B6D4.toInt(), // Cyan
+    0xFF84CC16.toInt()  // Lime Green
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProfileManagerBottomSheet(
+    viewModel: ExpenseViewModel,
+    accountsList: List<Account>,
+    activeAccount: Account?,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    var showAddDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    // Dialog layout
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF1B072C)),
+            border = BorderStroke(1.dp, Color(0xFFCD9BFF).copy(alpha = 0.2f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                // Bottom Sheet Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(Color(0xFFCD9BFF).copy(alpha = 0.15f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ManageAccounts,
+                                contentDescription = null,
+                                tint = Color(0xFFCD9BFF),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Text(
+                            text = "Profile Spaces",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color.White.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+
+                // 1. Current Active Profile Info Card
+                if (activeAccount != null) {
+                    Text(
+                        text = "Active Space",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFFCD9BFF)
+                    )
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF2C1342)),
+                        shape = RoundedCornerShape(20.dp),
+                        border = BorderStroke(1.5.dp, Color(activeAccount.color))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(18.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(54.dp)
+                                        .background(Color(activeAccount.color), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = getAvatarIcon(activeAccount.avatar),
+                                        contentDescription = activeAccount.avatar,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                }
+
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        text = activeAccount.name,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Currency: ${activeAccount.currency}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Color.White.copy(alpha = 0.6f)
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .size(4.dp)
+                                                .background(Color.White.copy(alpha = 0.4f), CircleShape)
+                                        )
+                                        Text(
+                                            text = activeAccount.themePreference,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Color.White.copy(alpha = 0.6f)
+                                        )
+                                    }
+                                }
+                            }
+
+                            // PIN Lock indicator flag
+                            if (activeAccount.pin != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .background(Color.Red.copy(alpha = 0.15f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Lock,
+                                        contentDescription = "PIN Locked",
+                                        tint = Color.Red,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.LockOpen,
+                                    contentDescription = "PIN Unlocked",
+                                    tint = Color.Green.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 2. Select / Switch Profile Section
+                Text(
+                    text = "Switch Space Profile",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFFCD9BFF)
+                )
+
+                if (accountsList.size <= 1) {
+                    Text(
+                        text = "No secondary spaces configured.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.4f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                    )
+                } else {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(accountsList) { acc ->
+                            val isCurrentSelected = activeAccount?.id == acc.id
+                            Card(
+                                modifier = Modifier
+                                    .width(135.dp)
+                                    .clickable {
+                                        if (!isCurrentSelected) {
+                                            viewModel.selectAccount(acc)
+                                            onDismiss() // Automatically close on switch
+                                        }
+                                    },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isCurrentSelected) Color(0xFF321A4B) else Color(0xFF24103A)
+                                ),
+                                shape = RoundedCornerShape(16.dp),
+                                border = BorderStroke(
+                                    if (isCurrentSelected) 2.dp else 1.dp,
+                                    if (isCurrentSelected) Color(acc.color) else Color.White.copy(alpha = 0.1f)
+                                )
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(14.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .background(Color(acc.color), CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = getAvatarIcon(acc.avatar),
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+
+                                    Text(
+                                        text = acc.name,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        maxLines = 1,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Divider(color = Color.White.copy(alpha = 0.1f))
+
+                // 3. Centralised Action Operations Row
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // ADD NEW PROFILE BUTTON
+                    Button(
+                        onClick = { showAddDialog = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFCD9BFF)),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Icon(Icons.Default.AddHome, contentDescription = null, tint = Color(0xFF140822))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Add New Profile", color = Color(0xFF140822), fontWeight = FontWeight.Bold)
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // EDIT PROFILE BUTTON
+                        Button(
+                            onClick = { showEditDialog = true },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E1B46)),
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, Color(0xFFCD9BFF).copy(alpha = 0.3f))
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = null, tint = Color.White)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Edit Profile", color = Color.White)
+                        }
+
+                        // DELETE PROFILE BUTTON (except default/only remaining profile)
+                        if (accountsList.size > 1 && activeAccount != null) {
+                            Button(
+                                onClick = { showDeleteConfirm = true },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF881B34)),
+                                shape = RoundedCornerShape(14.dp),
+                                border = BorderStroke(1.dp, Color.Red.copy(alpha = 0.3f))
+                            ) {
+                                Icon(Icons.Default.DeleteForever, contentDescription = null, tint = Color.White)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Delete", color = Color.White)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // --- DIALOG: DELETE CONFIRMER ---
+    if (showDeleteConfirm && activeAccount != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete Workspace Profile?", color = Color.White, fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    text = "Are you absolutely sure you want to delete \"${activeAccount.name}\"? " +
+                            "This action will permanently delete all associated ledger transactions, budgets, " +
+                            "savings goals, and cannot be undone.",
+                    color = Color.White.copy(alpha = 0.8f)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteAccount(activeAccount)
+                        showDeleteConfirm = false
+                        Toast.makeText(context, "Workspace successfully removed", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text("Delete Everything", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("Cancel", color = Color.Gray)
+                }
+            },
+            containerColor = Color(0xFF1F0D33)
+        )
+    }
+
+    // --- DIALOG: ADD NEW PROFILE ---
+    if (showAddDialog) {
+        ProfileConfigDialog(
+            titleLabel = "Instantiate Profile Space",
+            onDismiss = { showAddDialog = false },
+            onSubmit = { name, currency, pin, colorVal, avatar, theme, balance ->
+                viewModel.addAccount(
+                    name = name,
+                    pin = pin,
+                    color = colorVal,
+                    currency = currency,
+                    avatar = avatar,
+                    themePreference = theme,
+                    openingBalance = balance
+                )
+                showAddDialog = false
+                Toast.makeText(context, "Welcome to $name Workspace!", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    // --- DIALOG: EDIT ACTIVE PROFILE ---
+    if (showEditDialog && activeAccount != null) {
+        ProfileConfigDialog(
+            titleLabel = "Configure Workspace Settings",
+            existingAccount = activeAccount,
+            onDismiss = { showEditDialog = false },
+            onSubmit = { name, currency, pin, colorVal, avatar, theme, _ ->
+                viewModel.updateAccountSettings(
+                    account = activeAccount,
+                    newName = name,
+                    newPin = pin,
+                    newColor = colorVal,
+                    newCurrency = currency,
+                    newAvatar = avatar,
+                    newThemePreference = theme
+                )
+                showEditDialog = false
+                Toast.makeText(context, "Workspace updated successfully!", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+}
+
+/**
+ * A beautiful, integrated configuration modal supporting setup, edit, avatars, PIN settings, themed settings, and opening balances.
+ */
+@Composable
+fun ProfileConfigDialog(
+    titleLabel: String,
+    existingAccount: Account? = null,
+    onDismiss: () -> Unit,
+    onSubmit: (name: String, currency: String, pin: String?, colorVal: Int, avatar: String, theme: String, openingBalance: Double) -> Unit
+) {
+    var name by remember { mutableStateOf(existingAccount?.name ?: "") }
+    var currency by remember { mutableStateOf(existingAccount?.currency ?: "$") }
+    var avatar by remember { mutableStateOf(existingAccount?.avatar ?: "Personal") }
+    var selectedColor by remember { mutableStateOf(existingAccount?.color ?: ProfileColorList.first()) }
+    var themePreference by remember { mutableStateOf(existingAccount?.themePreference ?: "Dark Purple") }
+    var openingBalanceStr by remember { mutableStateOf("") }
+
+    // PIN configurations
+    var pinEnabled by remember { mutableStateOf(existingAccount?.pin != null) }
+    var pinCode by remember { mutableStateOf(existingAccount?.pin ?: "") }
+    var confirmPinCode by remember { mutableStateOf(existingAccount?.pin ?: "") }
+
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val avatars = listOf("Personal", "Business", "Family", "Savings", "Travel")
+    val currencies = listOf("$", "€", "£", "₹", "¥")
+    val themes = listOf("Dark Purple", "Cozy Teal", "Solar Light")
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF230F36)),
+            border = BorderStroke(1.dp, Color(0xFFCD9BFF).copy(alpha = 0.15f))
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(22.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = titleLabel,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Divider(color = Color.White.copy(alpha = 0.08f))
+
+                // Profile Name Field
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Profile Name") },
+                    placeholder = { Text("e.g. Personal Account") },
+                    textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFFCD9BFF),
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
+                        unfocusedLabelColor = Color.White.copy(alpha = 0.6f),
+                        focusedLabelColor = Color(0xFFCD9BFF)
+                    ),
+                    singleLine = true
+                )
+
+                // Opening Balance Field (Only shown during profile creation)
+                if (existingAccount == null) {
+                    OutlinedTextField(
+                        value = openingBalanceStr,
+                        onValueChange = { openingBalanceStr = it },
+                        label = { Text("Opening Balance (Optional)") },
+                        placeholder = { Text("0.00") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFFCD9BFF),
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
+                            unfocusedLabelColor = Color.White.copy(alpha = 0.6f),
+                            focusedLabelColor = Color(0xFFCD9BFF)
+                        ),
+                        singleLine = true
+                    )
+                }
+
+                // Currency selector
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Currency", style = MaterialTheme.typography.labelSmall, color = Color(0xFFCD9BFF))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(currencies) { curr ->
+                            val isSelected = currency == curr
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isSelected) Color(0xFFCD9BFF) else Color.White.copy(alpha = 0.05f))
+                                    .clickable { currency = curr },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = curr,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) Color(0xFF140822) else Color.White
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Avatar / Icon selection
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Profile Avatar/Icon", style = MaterialTheme.typography.labelSmall, color = Color(0xFFCD9BFF))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        items(avatars) { avOption ->
+                            val isSelected = avatar.lowercase() == avOption.lowercase()
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.clickable { avatar = avOption }
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(46.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isSelected) Color(0xFFCD9BFF) else Color.White.copy(alpha = 0.05f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = getAvatarIcon(avOption),
+                                        contentDescription = avOption,
+                                        tint = if (isSelected) Color(0xFF140822) else Color.White
+                                    )
+                                }
+                                Text(
+                                    text = avOption,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (isSelected) Color(0xFFCD9BFF) else Color.White.copy(alpha = 0.5f),
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Color palette
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Palette Accenting", style = MaterialTheme.typography.labelSmall, color = Color(0xFFCD9BFF))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(ProfileColorList) { colVal ->
+                            val isSelected = selectedColor == colVal
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(colVal))
+                                    .clickable { selectedColor = colVal }
+                                    .border(
+                                        if (isSelected) BorderStroke(3.dp, Color.White) 
+                                        else BorderStroke(0.dp, Color.Transparent),
+                                        CircleShape
+                                    )
+                            )
+                        }
+                    }
+                }
+
+                // Theme selection
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Theme Preference", style = MaterialTheme.typography.labelSmall, color = Color(0xFFCD9BFF))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        themes.forEach { tPref ->
+                            val isSelected = themePreference == tPref
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(36.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isSelected) Color(0xFFCD9BFF) else Color.White.copy(alpha = 0.05f))
+                                    .clickable { themePreference = tPref },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = tPref,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (isSelected) Color(0xFF140822) else Color.White
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Divider(color = Color.White.copy(alpha = 0.08f))
+
+                // PIN Protection Settings
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("PIN Code Protection", style = MaterialTheme.typography.bodyMedium, color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("Require lock pincode to access", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.5f))
+                    }
+                    Switch(
+                        checked = pinEnabled,
+                        onCheckedChange = {
+                            pinEnabled = it
+                            if (!it) {
+                                pinCode = ""
+                                confirmPinCode = ""
+                            }
+                        },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFFCD9BFF))
+                    )
+                }
+
+                AnimatedVisibility(visible = pinEnabled) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = pinCode,
+                                onValueChange = { if (it.length <= 4) pinCode = it.filter { digit -> digit.isDigit() } },
+                                label = { Text("Set 4-Digit PIN") },
+                                textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                visualTransformation = PasswordVisualTransformation(),
+                                modifier = Modifier.weight(1f),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFFCD9BFF),
+                                    unfocusedBorderColor = Color.White.copy(alpha = 0.2f)
+                                ),
+                                singleLine = true
+                            )
+
+                            OutlinedTextField(
+                                value = confirmPinCode,
+                                onValueChange = { if (it.length <= 4) confirmPinCode = it.filter { digit -> digit.isDigit() } },
+                                label = { Text("Confirm PIN") },
+                                textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                visualTransformation = PasswordVisualTransformation(),
+                                modifier = Modifier.weight(1f),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFFCD9BFF),
+                                    unfocusedBorderColor = Color.White.copy(alpha = 0.2f)
+                                ),
+                                singleLine = true
+                            )
+                        }
+                    }
+                }
+
+                // Verification / validation warning panel
+                AnimatedVisibility(visible = errorMessage != null) {
+                    Text(
+                        text = errorMessage ?: "",
+                        color = Color.Red,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                // Submit / Confirm Actions
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Close", color = Color.Gray)
+                    }
+
+                    Button(
+                        onClick = {
+                            if (name.isBlank()) {
+                                errorMessage = "Please supply a valid workspace nickname."
+                                return@Button
+                            }
+                            if (pinEnabled) {
+                                if (pinCode.length != 4) {
+                                    errorMessage = "PIN code must be exactly 4 digits."
+                                    return@Button
+                                }
+                                if (pinCode != confirmPinCode) {
+                                    errorMessage = "PIN verification does not match. Re-check entry."
+                                    return@Button
+                                }
+                            }
+
+                            val baseBalance = openingBalanceStr.toDoubleOrNull() ?: 0.0
+                            onSubmit(
+                                name,
+                                currency,
+                                if (pinEnabled) pinCode else null,
+                                selectedColor,
+                                avatar,
+                                themePreference,
+                                baseBalance
+                            )
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFCD9BFF)),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Confirm", color = Color(0xFF140822), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}

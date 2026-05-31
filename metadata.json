@@ -1,0 +1,6 @@
+{
+  "name": "Expense Tracker",
+  "description": "Offline-first modern expense tracker with multi-profile support, PIN-locked profiles, category budgets, visual analytics, and offline backups.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
