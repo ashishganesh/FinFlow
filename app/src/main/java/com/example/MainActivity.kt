@@ -106,7 +106,19 @@ fun AppNavigationShell(
     var showAddDialog by remember { mutableStateOf(false) }
     var initialAddType by remember { mutableStateOf("EXPENSE") }
     var selectedTxForEdit by remember { mutableStateOf<Transaction?>(null) }
+    var selectedTxItems by remember { mutableStateOf<List<TransactionItem>>(emptyList()) }
     var showAddBudgetDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(selectedTxForEdit) {
+        val tx = selectedTxForEdit
+        if (tx != null) {
+            viewModel.getItemsForTransaction(tx.id).collect { items ->
+                selectedTxItems = items
+            }
+        } else {
+            selectedTxItems = emptyList()
+        }
+    }
 
     // Account selector comprehensive sheet state
     var showProfileManager by remember { mutableStateOf(false) }
@@ -332,13 +344,19 @@ fun AppNavigationShell(
                     accounts = viewModel.accounts.collectAsStateWithLifecycle().value,
                     activeAccountId = viewModel.selectedAccountId.collectAsStateWithLifecycle().value,
                     onDismiss = { showAddDialog = false },
-                    onSubmit = { amount, title, category, type, remarks, timestamp, isRec, recInterval, payMode, imgPath, destId ->
+                    onSubmit = { amount, title, category, type, remarks, timestamp, isRec, recInterval, payMode, imgPath, destId, items ->
                         if (type == "TRANSFER" && destId != null) {
                             viewModel.transferBalance(destId, amount, title, remarks, timestamp, payMode)
                         } else {
-                            viewModel.insertTransaction(
-                                amount, title, category, type, remarks, timestamp, isRec, recInterval, payMode, imgPath
-                            )
+                            if (items.isNotEmpty()) {
+                                viewModel.insertTransactionWithItems(
+                                    amount, title, category, type, remarks, timestamp, isRec, recInterval, payMode, imgPath, items
+                                )
+                            } else {
+                                viewModel.insertTransaction(
+                                    amount, title, category, type, remarks, timestamp, isRec, recInterval, payMode, imgPath
+                                )
+                            }
                         }
                         showAddDialog = false
                         Toast.makeText(context, "Transaction successfully logged!", Toast.LENGTH_SHORT).show()
@@ -446,27 +464,31 @@ fun AppNavigationShell(
                 Box(modifier = Modifier.fillMaxSize()) {
                     AddEditTransactionDialog(
                         transaction = selectedTxForEdit,
+                        initialItems = selectedTxItems,
                         categories = availableCats,
                         currencySymbol = activeAcc?.currency ?: "$",
                         accounts = viewModel.accounts.collectAsStateWithLifecycle().value,
                         activeAccountId = viewModel.selectedAccountId.collectAsStateWithLifecycle().value,
                         onDismiss = { selectedTxForEdit = null },
-                        onSubmit = { amount, title, category, type, remarks, timestamp, isRec, recInterval, payMode, imgPath, destId ->
+                        onSubmit = { amount, title, category, type, remarks, timestamp, isRec, recInterval, payMode, imgPath, destId, items ->
                             val original = selectedTxForEdit!!
-                            viewModel.updateTransaction(
-                                original.copy(
-                                    amount = amount,
-                                    title = title,
-                                    category = category,
-                                    type = type,
-                                    remarks = remarks,
-                                    timestamp = timestamp,
-                                    isRecurring = isRec,
-                                    recurringInterval = recInterval,
-                                    paymentMode = payMode,
-                                    imagePath = imgPath
-                                )
+                            val updatedTx = original.copy(
+                                amount = amount,
+                                title = title,
+                                category = category,
+                                type = type,
+                                remarks = remarks,
+                                timestamp = timestamp,
+                                isRecurring = isRec,
+                                recurringInterval = recInterval,
+                                paymentMode = payMode,
+                                imagePath = imgPath
                             )
+                            if (items.isNotEmpty() || selectedTxItems.isNotEmpty()) {
+                                viewModel.updateTransactionWithItems(updatedTx, items)
+                            } else {
+                                viewModel.updateTransaction(updatedTx)
+                            }
                             selectedTxForEdit = null
                             Toast.makeText(context, "Record updated successfully!", Toast.LENGTH_SHORT).show()
                         }

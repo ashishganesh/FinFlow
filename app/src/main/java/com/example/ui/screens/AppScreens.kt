@@ -42,6 +42,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.scale
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.data.*
 import com.example.ui.*
 import com.example.ui.components.*
@@ -1348,12 +1351,28 @@ fun TransactionRowItem(
     currencySymbol: String,
     onClick: () -> Unit
 ) {
+    val viewModel: ExpenseViewModel = viewModel()
+    var expanded by remember { mutableStateOf(false) }
+    var itemsList by remember { mutableStateOf<List<TransactionItem>>(emptyList()) }
+
+    LaunchedEffect(tx.id) {
+        viewModel.getItemsForTransaction(tx.id).collect { items ->
+            itemsList = items
+        }
+    }
+
     val isExpense = tx.type == "EXPENSE"
     val colorAccent = if (isExpense) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary
     val mathPrefix = if (isExpense) "-" else "+"
 
     Card(
-        onClick = onClick,
+        onClick = {
+            if (itemsList.isNotEmpty()) {
+                expanded = !expanded
+            } else {
+                onClick()
+            }
+        },
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -1421,6 +1440,14 @@ fun TransactionRowItem(
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.SemiBold
                         )
+                        if (itemsList.isNotEmpty()) {
+                            Text(
+                                text = "• ${itemsList.size} Items",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                         Box(
                             modifier = Modifier
                                 .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
@@ -1458,6 +1485,66 @@ fun TransactionRowItem(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+
+                if (expanded && itemsList.isNotEmpty()) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    
+                    Text(
+                        text = "Itemized Breakdown",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+                    
+                    itemsList.forEach { item ->
+                        val itemTotal = item.quantity * item.pricePerUnit
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = item.name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "${item.quantity} ${item.unitType} × $currencySymbol${String.format("%.2f", item.pricePerUnit)}" + 
+                                            if (item.note.isNotBlank()) " (${item.note})" else "",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Text(
+                                text = "$currencySymbol${String.format("%.2f", itemTotal)}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Button(
+                        onClick = onClick,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(36.dp),
+                        contentPadding = PaddingValues(0.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), contentColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Edit or Delete Transaction", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
     }
@@ -1489,6 +1576,13 @@ fun BudgetsScreen(
 
     var selectedTabIdx by remember { mutableIntStateOf(0) }
     val tabLabels = listOf("Savings", "Budget", "Analytics")
+
+    var activeGoalForAddTransaction by remember { mutableStateOf<SavingsGoal?>(null) }
+    var activeGoalForWithdrawTransaction by remember { mutableStateOf<SavingsGoal?>(null) }
+    var activeGoalForHistory by remember { mutableStateOf<SavingsGoal?>(null) }
+
+    var savingsActionAmount by remember { mutableStateOf("") }
+    var savingsActionNote by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -1619,6 +1713,7 @@ fun BudgetsScreen(
                             items(savingsGoalsList) { goal ->
                                 val progressRatio = if (goal.targetAmount > 0) (goal.currentAmount / goal.targetAmount).toFloat().coerceIn(0f, 1f) else 0f
                                 val progressPercent = (progressRatio * 100).toInt()
+                                val remainingAmount = (goal.targetAmount - goal.currentAmount).coerceAtLeast(0.0)
 
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
@@ -1684,6 +1779,79 @@ fun BudgetsScreen(
                                             ) {
                                                 Text("Completed: $progressPercent%", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                                                 Text("Target Date: ${goal.dueDate}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            }
+                                        }
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            if (remainingAmount > 0) {
+                                                Text(
+                                                    "Remaining: $currency${String.format(Locale.getDefault(), "%,.0f", remainingAmount)}",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                            } else {
+                                                Text(
+                                                    "Target Mastered! 🎉",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.tertiary,
+                                                    fontWeight = FontWeight.ExtraBold
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            FilledTonalButton(
+                                                onClick = {
+                                                    activeGoalForAddTransaction = goal
+                                                    savingsActionAmount = ""
+                                                    savingsActionNote = ""
+                                                },
+                                                modifier = Modifier.weight(1f).height(36.dp),
+                                                contentPadding = PaddingValues(0.dp),
+                                                shape = RoundedCornerShape(8.dp)
+                                            ) {
+                                                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Add", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                                            }
+
+                                            FilledTonalButton(
+                                                onClick = {
+                                                    activeGoalForWithdrawTransaction = goal
+                                                    savingsActionAmount = ""
+                                                    savingsActionNote = ""
+                                                },
+                                                modifier = Modifier.weight(1f).height(36.dp),
+                                                contentPadding = PaddingValues(0.dp),
+                                                shape = RoundedCornerShape(8.dp),
+                                                colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f), contentColor = MaterialTheme.colorScheme.onErrorContainer)
+                                            ) {
+                                                Icon(Icons.Default.Remove, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Withdraw", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                                            }
+
+                                            OutlinedButton(
+                                                onClick = {
+                                                    activeGoalForHistory = goal
+                                                },
+                                                modifier = Modifier.weight(1f).height(36.dp),
+                                                contentPadding = PaddingValues(0.dp),
+                                                shape = RoundedCornerShape(8.dp)
+                                            ) {
+                                                Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("History", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
                                             }
                                         }
                                     }
@@ -1782,6 +1950,232 @@ fun BudgetsScreen(
                             dismissButton = {
                                 TextButton(onClick = { isAddGoalDialogVisible = false }) {
                                     Text("Dismiss", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        )
+                    }
+
+                    // Dialogue to Add Money to Savings Goal
+                    if (activeGoalForAddTransaction != null) {
+                        val goal = activeGoalForAddTransaction!!
+                        AlertDialog(
+                            onDismissRequest = { activeGoalForAddTransaction = null },
+                            title = { Text("Deposit: ${goal.name}", fontWeight = FontWeight.Bold) },
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            text = {
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Text(
+                                        "Target: $currency${String.format("%,.0f", goal.targetAmount)}  •  Saved: $currency${String.format("%,.0f", goal.currentAmount)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    OutlinedTextField(
+                                        value = savingsActionAmount,
+                                        onValueChange = { savingsActionAmount = it },
+                                        label = { Text("Deposit Amount ($currency)") },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    OutlinedTextField(
+                                        value = savingsActionNote,
+                                        onValueChange = { savingsActionNote = it },
+                                        label = { Text("Optional Note") },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        val amt = savingsActionAmount.toDoubleOrNull()
+                                        if (amt != null && amt > 0.0) {
+                                            viewModel.addSavingsGoalTransaction(goal, amt, savingsActionNote.trim())
+                                            Toast.makeText(context, "$currency$amt deposited into ${goal.name}!", Toast.LENGTH_SHORT).show()
+                                            activeGoalForAddTransaction = null
+                                        } else {
+                                            Toast.makeText(context, "Please enter a valid deposit amount", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                ) {
+                                    Text("Add Money")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { activeGoalForAddTransaction = null }) {
+                                    Text("Cancel", color = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                        )
+                    }
+
+                    // Dialogue to Withdraw Money from Savings Goal
+                    if (activeGoalForWithdrawTransaction != null) {
+                        val goal = activeGoalForWithdrawTransaction!!
+                        AlertDialog(
+                            onDismissRequest = { activeGoalForWithdrawTransaction = null },
+                            title = { Text("Withdraw: ${goal.name}", fontWeight = FontWeight.Bold) },
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            text = {
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Text(
+                                        "Available Balance: $currency${String.format("%,.0f", goal.currentAmount)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    OutlinedTextField(
+                                        value = savingsActionAmount,
+                                        onValueChange = { savingsActionAmount = it },
+                                        label = { Text("Withdrawal Amount ($currency)") },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    OutlinedTextField(
+                                        value = savingsActionNote,
+                                        onValueChange = { savingsActionNote = it },
+                                        label = { Text("Reason / Note") },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        val amt = savingsActionAmount.toDoubleOrNull()
+                                        if (amt != null && amt > 0.0) {
+                                            if (amt > goal.currentAmount) {
+                                                Toast.makeText(context, "Error: Cannot withdraw more than saved $currency${goal.currentAmount}!", Toast.LENGTH_LONG).show()
+                                            } else {
+                                                viewModel.withdrawSavingsGoalTransaction(goal, amt, savingsActionNote.trim())
+                                                Toast.makeText(context, "$currency$amt withdrawn from ${goal.name} successfully!", Toast.LENGTH_SHORT).show()
+                                                activeGoalForWithdrawTransaction = null
+                                            }
+                                        } else {
+                                            Toast.makeText(context, "Please enter a valid withdrawal amount", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                                ) {
+                                    Text("Withdraw")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { activeGoalForWithdrawTransaction = null }) {
+                                    Text("Cancel")
+                                }
+                            }
+                        )
+                    }
+
+                    // Dialogue for Savings history logs
+                    if (activeGoalForHistory != null) {
+                        val goal = activeGoalForHistory!!
+                        val historyList by viewModel.getSavingsGoalHistory(goal.id).collectAsStateWithLifecycle(initialValue = emptyList())
+                        val dFormatter = SimpleDateFormat("MMM d, yyyy h:mm a", Locale.getDefault())
+
+                        AlertDialog(
+                            onDismissRequest = { activeGoalForHistory = null },
+                            title = { Text("${goal.name} History", fontWeight = FontWeight.Bold) },
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            text = {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(max = 400.dp)
+                                        .verticalScroll(rememberScrollState()),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    if (historyList.isEmpty()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(24.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                "No history entries recorded yet for this goal.",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
+                                    } else {
+                                        historyList.forEach { hist ->
+                                            val isDeposit = hist.action == "Added"
+                                            val sign = if (isDeposit) "+" else "-"
+                                            val amountCol = if (isDeposit) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+                                            val iconVal = if (isDeposit) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward
+                                            val actionColor = if (isDeposit) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+
+                                            Card(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(10.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(32.dp)
+                                                            .background(actionColor, CircleShape),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = iconVal,
+                                                            contentDescription = null,
+                                                            tint = amountCol,
+                                                            modifier = Modifier.size(16.dp)
+                                                        )
+                                                    }
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Row(
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Text(
+                                                                text = if (isDeposit) "Deposited" else "Withdrawn",
+                                                                style = MaterialTheme.typography.bodyMedium,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = MaterialTheme.colorScheme.onSurface
+                                                            )
+                                                            Text(
+                                                                text = "$sign$currency${String.format("%.0f", hist.amount)}",
+                                                                style = MaterialTheme.typography.bodyMedium,
+                                                                fontWeight = FontWeight.ExtraBold,
+                                                                color = amountCol
+                                                            )
+                                                        }
+                                                        Text(
+                                                            text = dFormatter.format(Date(hist.timestamp)),
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        )
+                                                        if (hist.note.isNotBlank()) {
+                                                            Text(
+                                                                text = hist.note,
+                                                                style = MaterialTheme.typography.bodySmall,
+                                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                                modifier = Modifier.padding(top = 2.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            confirmButton = {
+                                Button(onClick = { activeGoalForHistory = null }) {
+                                    Text("Close")
                                 }
                             }
                         )

@@ -29,6 +29,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.example.data.Account
 import com.example.data.Transaction
+import com.example.data.TransactionItem
+import androidx.compose.foundation.horizontalScroll
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -36,6 +38,7 @@ import java.util.*
 @Composable
 fun AddEditTransactionDialog(
     transaction: Transaction? = null,
+    initialItems: List<TransactionItem> = emptyList(),
     initialType: String = "EXPENSE",
     categories: List<String>,
     currencySymbol: String = "$",
@@ -53,7 +56,8 @@ fun AddEditTransactionDialog(
         recurringInterval: String?,
         paymentMode: String,
         imagePath: String?,
-        transferDestAccountId: Int?
+        transferDestAccountId: Int?,
+        items: List<TransactionItem>
     ) -> Unit
 ) {
     val context = LocalContext.current
@@ -87,6 +91,16 @@ fun AddEditTransactionDialog(
     
     // Simulated receipt image path/existence
     var imagePath by remember { mutableStateOf(transaction?.imagePath) }
+
+    var isItemized by remember { mutableStateOf(initialItems.isNotEmpty()) }
+    var itemizedItems by remember { mutableStateOf(initialItems) }
+
+    // Item builder state
+    var newItemName by remember { mutableStateOf("") }
+    var newItemQuantity by remember { mutableStateOf("") }
+    var newItemPrice by remember { mutableStateOf("") }
+    var newItemUnitType by remember { mutableStateOf("pcs") }
+    var newItemNote by remember { mutableStateOf("") }
     
     // Transfer destination account
     var selectedDestAccountId by remember {
@@ -233,19 +247,279 @@ fun AddEditTransactionDialog(
                     }
                 }
 
-                // Amount Text Field
-                OutlinedTextField(
-                    value = amountStr,
-                    onValueChange = { input ->
-                        if (input.isEmpty() || input.toDoubleOrNull() != null || input.count { it == '.' } <= 1) {
-                            amountStr = input
+                if (transactionType == "EXPENSE") {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(Icons.Default.List, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Column {
+                                    Text("Itemized Expense Mode", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                    Text("Add multiple products & services", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                            Switch(
+                                checked = isItemized,
+                                onCheckedChange = { isItemized = it }
+                            )
                         }
-                    },
-                    label = { Text("Amount ($currencySymbol)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                    }
+                }
+
+                val calculatedTotal = if (isItemized && transactionType == "EXPENSE") {
+                    val builderQuantity = newItemQuantity.toDoubleOrNull() ?: 0.0
+                    val builderPrice = newItemPrice.toDoubleOrNull() ?: 0.0
+                    val builderTotal = if (newItemName.isNotBlank()) builderQuantity * builderPrice else 0.0
+                    itemizedItems.sumOf { it.quantity * it.pricePerUnit } + builderTotal
+                } else {
+                    0.0
+                }
+
+                if (isItemized && transactionType == "EXPENSE") {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+                        ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text("Total Amount (Calculated)", style = MaterialTheme.typography.labelMedium)
+                                Text(
+                                    text = "$currencySymbol${String.format("%.2f", calculatedTotal)}",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            AssistChip(
+                                onClick = {},
+                                label = { Text("${itemizedItems.size + if (newItemName.isNotBlank() && newItemQuantity.toDoubleOrNull() != null && newItemPrice.toDoubleOrNull() != null) 1 else 0} Items") },
+                                leadingIcon = { Icon(Icons.Default.ShoppingCart, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                            )
+                        }
+                    }
+                } else {
+                    // Amount Text Field
+                    OutlinedTextField(
+                        value = amountStr,
+                        onValueChange = { input ->
+                            if (input.isEmpty() || input.toDoubleOrNull() != null || input.count { it == '.' } <= 1) {
+                                amountStr = input
+                            }
+                        },
+                        label = { Text("Amount ($currencySymbol)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                if (isItemized && transactionType == "EXPENSE") {
+                    if (itemizedItems.isNotEmpty()) {
+                        Text(
+                            "Items list",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        itemizedItems.forEachIndexed { index, item ->
+                            val itemTotal = item.quantity * item.pricePerUnit
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(item.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                "${item.quantity} ${item.unitType} × $currencySymbol${String.format("%.2f", item.pricePerUnit)}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            if (item.note.isNotBlank()) {
+                                                Text(
+                                                    "• ${item.note}",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Text(
+                                        "$currencySymbol${String.format("%.2f", itemTotal)}",
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    IconButton(
+                                        onClick = { itemizedItems = itemizedItems.filterIndexed { idx, _ -> idx != index } },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = "Delete",
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Item Builder / Input Form
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                "Add Item details",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            OutlinedTextField(
+                                value = newItemName,
+                                onValueChange = { newItemName = it },
+                                label = { Text("Product/Service Name", style = MaterialTheme.typography.bodySmall) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = newItemQuantity,
+                                    onValueChange = { input ->
+                                        if (input.isEmpty() || input.toDoubleOrNull() != null) {
+                                            newItemQuantity = input
+                                        }
+                                    },
+                                    label = { Text("Qty", style = MaterialTheme.typography.bodySmall) },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                OutlinedTextField(
+                                    value = newItemPrice,
+                                    onValueChange = { input ->
+                                        if (input.isEmpty() || input.toDoubleOrNull() != null) {
+                                            newItemPrice = input
+                                        }
+                                    },
+                                    label = { Text("Price Unit", style = MaterialTheme.typography.bodySmall) },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1.5f)
+                                )
+                            }
+
+                            // Unit Type selector (as modern Horizontal Chips scrollable row!)
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    "Unit Type",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                val unitTypes = listOf("pcs", "kg", "litre", "packet", "box", "g", "ml", "bottle")
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState())
+                                ) {
+                                    unitTypes.forEach { uType ->
+                                        val isSel = newItemUnitType == uType
+                                        FilterChip(
+                                            selected = isSel,
+                                            onClick = { newItemUnitType = uType },
+                                            label = { Text(uType) }
+                                        )
+                                    }
+                                }
+                            }
+
+                            OutlinedTextField(
+                                value = newItemNote,
+                                onValueChange = { newItemNote = it },
+                                label = { Text("Optional Item Note", style = MaterialTheme.typography.bodySmall) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            // Add Item Button
+                            Button(
+                                onClick = {
+                                    if (newItemName.isNotBlank() && newItemQuantity.toDoubleOrNull() != null && newItemPrice.toDoubleOrNull() != null) {
+                                        val qty = newItemQuantity.toDoubleOrNull() ?: 1.0
+                                        val price = newItemPrice.toDoubleOrNull() ?: 0.0
+                                        val newItem = TransactionItem(
+                                            transactionId = transaction?.id ?: 0,
+                                            name = newItemName.trim(),
+                                            quantity = qty,
+                                            pricePerUnit = price,
+                                            unitType = newItemUnitType,
+                                            note = newItemNote.trim()
+                                        )
+                                        itemizedItems = itemizedItems + newItem
+                                        // Reset fields
+                                        newItemName = ""
+                                        newItemQuantity = ""
+                                        newItemPrice = ""
+                                        newItemUnitType = "pcs"
+                                        newItemNote = ""
+                                    } else {
+                                        Toast.makeText(context, "Please complete Item Name, Qty, and Price fields", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Add Another Item", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+                }
 
                 // Title Text Field
                 OutlinedTextField(
@@ -561,10 +835,37 @@ fun AddEditTransactionDialog(
                         Text("Cancel", color = MaterialTheme.colorScheme.error)
                     }
 
-                    val submitEnabled = amountStr.toDoubleOrNull() != null && title.isNotBlank() && (transactionType != "TRANSFER" || selectedDestAccountId != null)
+                    val submitEnabled = (if (isItemized && transactionType == "EXPENSE") {
+                        itemizedItems.isNotEmpty() || newItemName.isNotBlank()
+                    } else {
+                        amountStr.toDoubleOrNull() != null
+                    }) && title.isNotBlank() && (transactionType != "TRANSFER" || selectedDestAccountId != null)
+
                     Button(
                         onClick = {
-                            val amountParsed = amountStr.toDoubleOrNull() ?: 0.0
+                            val finalItems = if (isItemized && transactionType == "EXPENSE") {
+                                if (newItemName.isNotBlank() && newItemQuantity.toDoubleOrNull() != null && newItemPrice.toDoubleOrNull() != null) {
+                                    itemizedItems + TransactionItem(
+                                        transactionId = transaction?.id ?: 0,
+                                        name = newItemName.trim(),
+                                        quantity = newItemQuantity.toDoubleOrNull() ?: 1.0,
+                                        pricePerUnit = newItemPrice.toDoubleOrNull() ?: 0.0,
+                                        unitType = newItemUnitType,
+                                        note = newItemNote.trim()
+                                    )
+                                } else {
+                                    itemizedItems
+                                }
+                            } else {
+                                emptyList()
+                            }
+
+                            val amountParsed = if (isItemized && transactionType == "EXPENSE") {
+                                finalItems.sumOf { it.quantity * it.pricePerUnit }
+                            } else {
+                                amountStr.toDoubleOrNull() ?: 0.0
+                            }
+
                             val finalCategory = if (transactionType == "TRANSFER") {
                                 "Transfer"
                             } else if (isCustomCategory) {
@@ -584,7 +885,8 @@ fun AddEditTransactionDialog(
                                 if (isRecurring) recurringInterval else null,
                                 paymentMode,
                                 imagePath,
-                                if (transactionType == "TRANSFER") selectedDestAccountId else null
+                                if (transactionType == "TRANSFER") selectedDestAccountId else null,
+                                finalItems
                             )
                         },
                         enabled = submitEnabled

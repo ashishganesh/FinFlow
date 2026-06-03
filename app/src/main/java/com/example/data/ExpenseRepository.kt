@@ -114,4 +114,34 @@ class ExpenseRepository(private val expenseDao: ExpenseDao) {
     suspend fun deleteDebtEntryById(entryId: Int) {
         expenseDao.deleteDebtEntryById(entryId)
     }
+
+    // --- SAVINGS GOALS HISTORY ---
+    fun getHistoryForGoal(goalId: Int): Flow<List<SavingsGoalHistory>> {
+        return expenseDao.getHistoryForGoal(goalId)
+    }
+
+    suspend fun insertSavingsGoalHistory(history: SavingsGoalHistory): Long {
+        return expenseDao.insertSavingsGoalHistory(history)
+    }
+
+    suspend fun deleteHistoryByGoal(goalId: Int) {
+        expenseDao.deleteHistoryByGoal(goalId)
+    }
+
+    // --- TRANSACTION ITEMS ---
+    fun getItemsForTransaction(transactionId: Int): Flow<List<TransactionItem>> {
+        return expenseDao.getItemsForTransaction(transactionId)
+    }
+
+    suspend fun getItemsForTransactionDirect(transactionId: Int): List<TransactionItem> {
+        return expenseDao.getItemsForTransactionDirect(transactionId)
+    }
+
+    suspend fun insertTransactionItem(item: TransactionItem): Long {
+        return expenseDao.insertTransactionItem(item)
+    }
+
+    suspend fun deleteItemsByTransaction(transactionId: Int) {
+        expenseDao.deleteItemsByTransaction(transactionId)
+    }
 }

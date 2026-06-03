@@ -49,6 +49,27 @@ data class SavingsGoal(
     val dueDate: String
 )
 
+@Entity(tableName = "savings_goal_history")
+data class SavingsGoalHistory(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val savingsGoalId: Int,
+    val action: String, // "Added" or "Withdrawn"
+    val amount: Double,
+    val timestamp: Long,
+    val note: String = ""
+)
+
+@Entity(tableName = "transaction_items")
+data class TransactionItem(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val transactionId: Int,
+    val name: String,
+    val quantity: Double,
+    val pricePerUnit: Double,
+    val unitType: String = "pcs", // "pcs", "kg", "litre", "packet", "box", etc.
+    val note: String = ""
+)
+
 @Entity(tableName = "debt_entries")
 data class DebtEntry(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,

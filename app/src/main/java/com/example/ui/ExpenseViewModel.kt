@@ -626,6 +626,7 @@ class ExpenseViewModel(
 
     fun deleteTransaction(tx: Transaction) {
         viewModelScope.launch {
+            repository.deleteItemsByTransaction(tx.id)
             repository.deleteTransaction(tx)
         }
     }
@@ -875,7 +876,102 @@ class ExpenseViewModel(
 
     fun deleteSavingsGoal(goal: SavingsGoal) {
         viewModelScope.launch {
+            repository.deleteHistoryByGoal(goal.id)
             repository.deleteSavingsGoal(goal)
+        }
+    }
+
+    fun getSavingsGoalHistory(goalId: Int): Flow<List<SavingsGoalHistory>> {
+        return repository.getHistoryForGoal(goalId)
+    }
+
+    fun addSavingsGoalTransaction(goal: SavingsGoal, amount: Double, note: String) {
+        viewModelScope.launch {
+            val updated = goal.copy(currentAmount = goal.currentAmount + amount)
+            repository.insertSavingsGoal(updated)
+            val history = SavingsGoalHistory(
+                savingsGoalId = goal.id,
+                action = "Added",
+                amount = amount,
+                timestamp = System.currentTimeMillis(),
+                note = note
+            )
+            repository.insertSavingsGoalHistory(history)
+        }
+    }
+
+    fun withdrawSavingsGoalTransaction(goal: SavingsGoal, amount: Double, note: String) {
+        viewModelScope.launch {
+            if (amount > goal.currentAmount) {
+                _alertMessage.emit("Cannot withdraw more than current saved amount!")
+                return@launch
+            }
+            val updated = goal.copy(currentAmount = goal.currentAmount - amount)
+            repository.insertSavingsGoal(updated)
+            val history = SavingsGoalHistory(
+                savingsGoalId = goal.id,
+                action = "Withdrawn",
+                amount = amount,
+                timestamp = System.currentTimeMillis(),
+                note = note
+            )
+            repository.insertSavingsGoalHistory(history)
+        }
+    }
+
+    // --- TRANSACTION ITEMS DETAILS ---
+    fun getItemsForTransaction(transactionId: Int): Flow<List<TransactionItem>> {
+        return repository.getItemsForTransaction(transactionId)
+    }
+
+    fun insertTransactionWithItems(
+        amount: Double,
+        title: String,
+        category: String,
+        type: String,
+        remarks: String,
+        timestamp: Long,
+        isRecurring: Boolean,
+        recurringInterval: String?,
+        paymentMode: String = "Cash",
+        imagePath: String? = null,
+        items: List<TransactionItem>
+    ) {
+        viewModelScope.launch {
+            val activeId = _selectedAccountId.value
+            if (activeId == -1) return@launch
+
+            val tx = Transaction(
+                accountId = activeId,
+                amount = amount,
+                title = title,
+                timestamp = timestamp,
+                remarks = remarks,
+                type = type,
+                category = category,
+                isRecurring = isRecurring,
+                recurringInterval = recurringInterval,
+                paymentMode = paymentMode,
+                imagePath = imagePath
+            )
+            val newTxId = repository.insertTransaction(tx)
+
+            items.forEach { item ->
+                repository.insertTransactionItem(item.copy(transactionId = newTxId.toInt()))
+            }
+
+            // Budget Threshold warning verification
+            checkBudgetExceededWarning(category, amount, type)
+        }
+    }
+
+    fun updateTransactionWithItems(tx: Transaction, items: List<TransactionItem>) {
+        viewModelScope.launch {
+            repository.updateTransaction(tx)
+            repository.deleteItemsByTransaction(tx.id)
+            items.forEach { item ->
+                repository.insertTransactionItem(item.copy(transactionId = tx.id))
+            }
         }
     }
 

@@ -99,4 +99,27 @@ interface ExpenseDao {
 
     @Query("DELETE FROM debt_entries WHERE accountId = :accountId")
     suspend fun deleteDebtEntriesByAccount(accountId: Int)
+
+    // --- SAVINGS GOALS HISTORY ---
+    @Query("SELECT * FROM savings_goal_history WHERE savingsGoalId = :goalId ORDER BY timestamp DESC")
+    fun getHistoryForGoal(goalId: Int): Flow<List<SavingsGoalHistory>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSavingsGoalHistory(history: SavingsGoalHistory): Long
+
+    @Query("DELETE FROM savings_goal_history WHERE savingsGoalId = :goalId")
+    suspend fun deleteHistoryByGoal(goalId: Int)
+
+    // --- TRANSACTION ITEMS ---
+    @Query("SELECT * FROM transaction_items WHERE transactionId = :transactionId")
+    fun getItemsForTransaction(transactionId: Int): Flow<List<TransactionItem>>
+
+    @Query("SELECT * FROM transaction_items WHERE transactionId = :transactionId")
+    suspend fun getItemsForTransactionDirect(transactionId: Int): List<TransactionItem>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTransactionItem(item: TransactionItem): Long
+
+    @Query("DELETE FROM transaction_items WHERE transactionId = :transactionId")
+    suspend fun deleteItemsByTransaction(transactionId: Int)
 }
