@@ -42,7 +42,7 @@ fun CategoryDonutChart(
             Text(
                 "No transaction records found for this period.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFFFAF5FF).copy(alpha = 0.5f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         return
@@ -57,7 +57,7 @@ fun CategoryDonutChart(
             Text(
                 "Empty zero values logged.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFFFAF5FF).copy(alpha = 0.5f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         return
@@ -122,13 +122,13 @@ fun CategoryDonutChart(
                             text = pair.first,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1
                         )
                         Text(
                             text = "$percent% • $currencySymbol${String.format("%.1f", pair.second)}",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFFFAF5FF).copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -150,12 +150,12 @@ fun CategoryDonutChart(
                             text = "Other",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "$remainingPercent% • $currencySymbol${String.format("%.1f", remainingSum)}",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFFFAF5FF).copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -168,7 +168,7 @@ fun CategoryDonutChart(
 fun BarChartComparing(
     data: List<Pair<String, Double>>,
     modifier: Modifier = Modifier,
-    barColor: Color = Color(0xFFCD9BFF),
+    barColor: Color = MaterialTheme.colorScheme.primary,
     currencySymbol: String = "₹"
 ) {
     if (data.isEmpty()) {
@@ -178,7 +178,7 @@ fun BarChartComparing(
         ) {
             Text(
                 "No chart coordinates.",
-                color = Color(0xFFFAF5FF).copy(alpha = 0.5f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         return
@@ -205,7 +205,7 @@ fun BarChartComparing(
                     Text(
                         text = "$currencySymbol${pair.second.toInt()}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFFCD9BFF),
+                        color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
@@ -219,7 +219,7 @@ fun BarChartComparing(
                     Text(
                         text = pair.first,
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1
                     )
                 }

@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import com.example.ui.theme.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.example.data.Account
@@ -75,8 +76,8 @@ fun ProfileManagerBottomSheet(
                 .fillMaxWidth()
                 .padding(vertical = 16.dp),
             shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF1B072C)),
-            border = BorderStroke(1.dp, Color(0xFFCD9BFF).copy(alpha = 0.2f)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
         ) {
             Column(
@@ -98,13 +99,13 @@ fun ProfileManagerBottomSheet(
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
-                                .background(Color(0xFFCD9BFF).copy(alpha = 0.15f), CircleShape),
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.ManageAccounts,
                                 contentDescription = null,
-                                tint = Color(0xFFCD9BFF),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -112,7 +113,7 @@ fun ProfileManagerBottomSheet(
                             text = "Profile Spaces",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
 
@@ -120,7 +121,7 @@ fun ProfileManagerBottomSheet(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close",
-                            tint = Color.White.copy(alpha = 0.6f)
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                     }
                 }
@@ -131,12 +132,12 @@ fun ProfileManagerBottomSheet(
                         text = "Active Space",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFFCD9BFF)
+                        color = MaterialTheme.colorScheme.primary
                     )
 
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF2C1342)),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                         shape = RoundedCornerShape(20.dp),
                         border = BorderStroke(1.5.dp, Color(activeAccount.color))
                     ) {
@@ -170,7 +171,7 @@ fun ProfileManagerBottomSheet(
                                         text = activeAccount.name,
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.White
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
                                     Row(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -179,17 +180,17 @@ fun ProfileManagerBottomSheet(
                                         Text(
                                             text = "Currency: ${activeAccount.currency}",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = Color.White.copy(alpha = 0.6f)
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                         )
                                         Box(
                                             modifier = Modifier
                                                 .size(4.dp)
-                                                .background(Color.White.copy(alpha = 0.4f), CircleShape)
+                                                .background(MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.4f), CircleShape)
                                         )
                                         Text(
                                             text = activeAccount.themePreference,
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = Color.White.copy(alpha = 0.6f)
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                         )
                                     }
                                 }
@@ -200,13 +201,13 @@ fun ProfileManagerBottomSheet(
                                 Box(
                                     modifier = Modifier
                                         .size(36.dp)
-                                        .background(Color.Red.copy(alpha = 0.15f), CircleShape),
+                                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.15f), CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Lock,
                                         contentDescription = "PIN Locked",
-                                        tint = Color.Red,
+                                        tint = MaterialTheme.colorScheme.error,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -214,7 +215,7 @@ fun ProfileManagerBottomSheet(
                                 Icon(
                                     imageVector = Icons.Default.LockOpen,
                                     contentDescription = "PIN Unlocked",
-                                    tint = Color.Green.copy(alpha = 0.6f),
+                                    tint = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.7f),
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -227,14 +228,14 @@ fun ProfileManagerBottomSheet(
                     text = "Switch Space Profile",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFFCD9BFF)
+                    color = MaterialTheme.colorScheme.primary
                 )
 
                 if (accountsList.size <= 1) {
                     Text(
                         text = "No secondary spaces configured.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.4f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                     )
@@ -255,12 +256,12 @@ fun ProfileManagerBottomSheet(
                                         }
                                     },
                                 colors = CardDefaults.cardColors(
-                                    containerColor = if (isCurrentSelected) Color(0xFF321A4B) else Color(0xFF24103A)
+                                    containerColor = if (isCurrentSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
                                 ),
                                 shape = RoundedCornerShape(16.dp),
                                 border = BorderStroke(
                                     if (isCurrentSelected) 2.dp else 1.dp,
-                                    if (isCurrentSelected) Color(acc.color) else Color.White.copy(alpha = 0.1f)
+                                    if (isCurrentSelected) Color(acc.color) else MaterialTheme.colorScheme.outlineVariant
                                 )
                             ) {
                                 Column(
@@ -286,7 +287,7 @@ fun ProfileManagerBottomSheet(
                                         text = acc.name,
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.White,
+                                        color = if (isCurrentSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         textAlign = TextAlign.Center
                                     )
@@ -296,7 +297,7 @@ fun ProfileManagerBottomSheet(
                     }
                 }
 
-                Divider(color = Color.White.copy(alpha = 0.1f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                 // 3. Centralised Action Operations Row
                 Column(
@@ -307,12 +308,15 @@ fun ProfileManagerBottomSheet(
                     Button(
                         onClick = { showAddDialog = true },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFCD9BFF)),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
                         shape = RoundedCornerShape(14.dp)
                     ) {
-                        Icon(Icons.Default.AddHome, contentDescription = null, tint = Color(0xFF140822))
+                        Icon(Icons.Default.AddHome, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Add New Profile", color = Color(0xFF140822), fontWeight = FontWeight.Bold)
+                        Text("Add New Profile", fontWeight = FontWeight.Bold)
                     }
 
                     Row(
@@ -323,13 +327,16 @@ fun ProfileManagerBottomSheet(
                         Button(
                             onClick = { showEditDialog = true },
                             modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E1B46)),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            ),
                             shape = RoundedCornerShape(14.dp),
-                            border = BorderStroke(1.dp, Color(0xFFCD9BFF).copy(alpha = 0.3f))
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                         ) {
-                            Icon(Icons.Default.Edit, contentDescription = null, tint = Color.White)
+                            Icon(Icons.Default.Edit, contentDescription = null)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Edit Profile", color = Color.White)
+                            Text("Edit Profile")
                         }
 
                         // DELETE PROFILE BUTTON (except default/only remaining profile)
@@ -337,13 +344,16 @@ fun ProfileManagerBottomSheet(
                             Button(
                                 onClick = { showDeleteConfirm = true },
                                 modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF881B34)),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                ),
                                 shape = RoundedCornerShape(14.dp),
-                                border = BorderStroke(1.dp, Color.Red.copy(alpha = 0.3f))
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f))
                             ) {
-                                Icon(Icons.Default.DeleteForever, contentDescription = null, tint = Color.White)
+                                Icon(Icons.Default.DeleteForever, contentDescription = null)
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Delete", color = Color.White)
+                                Text("Delete")
                             }
                         }
                     }
@@ -356,13 +366,13 @@ fun ProfileManagerBottomSheet(
     if (showDeleteConfirm && activeAccount != null) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete Workspace Profile?", color = Color.White, fontWeight = FontWeight.Bold) },
+            title = { Text("Delete Workspace Profile?", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold) },
             text = {
                 Text(
                     text = "Are you absolutely sure you want to delete \"${activeAccount.name}\"? " +
                             "This action will permanently delete all associated ledger transactions, budgets, " +
                             "savings goals, and cannot be undone.",
-                    color = Color.White.copy(alpha = 0.8f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
             confirmButton = {
@@ -372,17 +382,20 @@ fun ProfileManagerBottomSheet(
                         showDeleteConfirm = false
                         Toast.makeText(context, "Workspace successfully removed", Toast.LENGTH_SHORT).show()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    )
                 ) {
-                    Text("Delete Everything", color = Color.White)
+                    Text("Delete Everything")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("Cancel", color = Color.Gray)
+                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },
-            containerColor = Color(0xFF1F0D33)
+            containerColor = MaterialTheme.colorScheme.surface
         )
     }
 
@@ -464,8 +477,8 @@ fun ProfileConfigDialog(
                 .fillMaxWidth()
                 .padding(vertical = 12.dp),
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF230F36)),
-            border = BorderStroke(1.dp, Color(0xFFCD9BFF).copy(alpha = 0.15f))
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
             Column(
                 modifier = Modifier
@@ -477,12 +490,12 @@ fun ProfileConfigDialog(
                     text = titleLabel,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Divider(color = Color.White.copy(alpha = 0.08f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                 // Profile Name Field
                 OutlinedTextField(
@@ -490,13 +503,14 @@ fun ProfileConfigDialog(
                     onValueChange = { name = it },
                     label = { Text("Profile Name") },
                     placeholder = { Text("e.g. Personal Account") },
-                    textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFFCD9BFF),
-                        unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
-                        unfocusedLabelColor = Color.White.copy(alpha = 0.6f),
-                        focusedLabelColor = Color(0xFFCD9BFF)
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
                     singleLine = true
                 )
@@ -509,13 +523,14 @@ fun ProfileConfigDialog(
                         label = { Text("Opening Balance (Optional)") },
                         placeholder = { Text("0.00") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFCD9BFF),
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
-                            unfocusedLabelColor = Color.White.copy(alpha = 0.6f),
-                            focusedLabelColor = Color(0xFFCD9BFF)
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            focusedLabelColor = MaterialTheme.colorScheme.primary,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                         ),
                         singleLine = true
                     )
@@ -523,7 +538,7 @@ fun ProfileConfigDialog(
 
                 // Currency selector
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Currency", style = MaterialTheme.typography.labelSmall, color = Color(0xFFCD9BFF))
+                    Text("Currency", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(currencies) { curr ->
                             val isSelected = currency == curr
@@ -531,14 +546,14 @@ fun ProfileConfigDialog(
                                 modifier = Modifier
                                     .size(40.dp)
                                     .clip(CircleShape)
-                                    .background(if (isSelected) Color(0xFFCD9BFF) else Color.White.copy(alpha = 0.05f))
+                                    .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
                                     .clickable { currency = curr },
                                 contentAlignment = Alignment.Center
-                            ) {
+                              ) {
                                 Text(
                                     text = curr,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isSelected) Color(0xFF140822) else Color.White
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
@@ -547,7 +562,7 @@ fun ProfileConfigDialog(
 
                 // Avatar / Icon selection
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Profile Avatar/Icon", style = MaterialTheme.typography.labelSmall, color = Color(0xFFCD9BFF))
+                    Text("Profile Avatar/Icon", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         items(avatars) { avOption ->
                             val isSelected = avatar.lowercase() == avOption.lowercase()
@@ -559,19 +574,19 @@ fun ProfileConfigDialog(
                                     modifier = Modifier
                                         .size(46.dp)
                                         .clip(CircleShape)
-                                        .background(if (isSelected) Color(0xFFCD9BFF) else Color.White.copy(alpha = 0.05f)),
+                                        .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = getAvatarIcon(avOption),
                                         contentDescription = avOption,
-                                        tint = if (isSelected) Color(0xFF140822) else Color.White
+                                        tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                                 Text(
                                     text = avOption,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = if (isSelected) Color(0xFFCD9BFF) else Color.White.copy(alpha = 0.5f),
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
                             }
@@ -581,7 +596,7 @@ fun ProfileConfigDialog(
 
                 // Color palette
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Palette Accenting", style = MaterialTheme.typography.labelSmall, color = Color(0xFFCD9BFF))
+                    Text("Palette Accenting", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(ProfileColorList) { colVal ->
                             val isSelected = selectedColor == colVal
@@ -592,7 +607,7 @@ fun ProfileConfigDialog(
                                     .background(Color(colVal))
                                     .clickable { selectedColor = colVal }
                                     .border(
-                                        if (isSelected) BorderStroke(3.dp, Color.White) 
+                                        if (isSelected) BorderStroke(3.dp, MaterialTheme.colorScheme.onSurface) 
                                         else BorderStroke(0.dp, Color.Transparent),
                                         CircleShape
                                     )
@@ -603,7 +618,7 @@ fun ProfileConfigDialog(
 
                 // Theme selection
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Theme Preference", style = MaterialTheme.typography.labelSmall, color = Color(0xFFCD9BFF))
+                    Text("Theme Preference", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -615,7 +630,7 @@ fun ProfileConfigDialog(
                                     .weight(1f)
                                     .height(36.dp)
                                     .clip(RoundedCornerShape(10.dp))
-                                    .background(if (isSelected) Color(0xFFCD9BFF) else Color.White.copy(alpha = 0.05f))
+                                    .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
                                     .clickable { themePreference = tPref },
                                 contentAlignment = Alignment.Center
                             ) {
@@ -623,14 +638,14 @@ fun ProfileConfigDialog(
                                     text = tPref,
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = if (isSelected) Color(0xFF140822) else Color.White
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
                     }
                 }
 
-                Divider(color = Color.White.copy(alpha = 0.08f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                 // PIN Protection Settings
                 Row(
@@ -639,8 +654,8 @@ fun ProfileConfigDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("PIN Code Protection", style = MaterialTheme.typography.bodyMedium, color = Color.White, fontWeight = FontWeight.Bold)
-                        Text("Require lock pincode to access", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.5f))
+                        Text("PIN Code Protection", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                        Text("Require lock pincode to access", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Switch(
                         checked = pinEnabled,
@@ -651,7 +666,7 @@ fun ProfileConfigDialog(
                                 confirmPinCode = ""
                             }
                         },
-                        colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFFCD9BFF))
+                        colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary)
                     )
                 }
 
@@ -665,13 +680,14 @@ fun ProfileConfigDialog(
                                 value = pinCode,
                                 onValueChange = { if (it.length <= 4) pinCode = it.filter { digit -> digit.isDigit() } },
                                 label = { Text("Set 4-Digit PIN") },
-                                textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 visualTransformation = PasswordVisualTransformation(),
                                 modifier = Modifier.weight(1f),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = Color(0xFFCD9BFF),
-                                    unfocusedBorderColor = Color.White.copy(alpha = 0.2f)
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                                 ),
                                 singleLine = true
                             )
@@ -680,13 +696,14 @@ fun ProfileConfigDialog(
                                 value = confirmPinCode,
                                 onValueChange = { if (it.length <= 4) confirmPinCode = it.filter { digit -> digit.isDigit() } },
                                 label = { Text("Confirm PIN") },
-                                textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 visualTransformation = PasswordVisualTransformation(),
                                 modifier = Modifier.weight(1f),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = Color(0xFFCD9BFF),
-                                    unfocusedBorderColor = Color.White.copy(alpha = 0.2f)
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                                 ),
                                 singleLine = true
                             )
@@ -698,7 +715,7 @@ fun ProfileConfigDialog(
                 AnimatedVisibility(visible = errorMessage != null) {
                     Text(
                         text = errorMessage ?: "",
-                        color = Color.Red,
+                        color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.fillMaxWidth(),
@@ -715,7 +732,7 @@ fun ProfileConfigDialog(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Close", color = Color.Gray)
+                        Text("Close", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
 
                     Button(
@@ -746,11 +763,14 @@ fun ProfileConfigDialog(
                                 baseBalance
                             )
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFCD9BFF)),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Confirm", color = Color(0xFF140822), fontWeight = FontWeight.Bold)
+                        Text("Confirm", fontWeight = FontWeight.Bold)
                     }
                 }
             }

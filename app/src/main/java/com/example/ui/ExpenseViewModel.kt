@@ -59,6 +59,13 @@ class ExpenseViewModel(
         prefs.edit().putBoolean("enable_carry_forward", enabled).apply()
     }
 
+    val themePreference = MutableStateFlow(prefs.getString("theme_preference", "system") ?: "system")
+
+    fun setThemePreference(pref: String) {
+        themePreference.value = pref
+        prefs.edit().putString("theme_preference", pref).apply()
+    }
+
     // --- FILTERS ---
     val searchQuery = MutableStateFlow("")
     val categoryFilter = MutableStateFlow("All")

@@ -49,26 +49,30 @@ class MainActivity : ComponentActivity() {
         val repository = ExpenseRepository(database.expenseDao())
 
         setContent {
-            // Interactive visual theme overrides
+            val app = this@MainActivity.application
+            val model: ExpenseViewModel = viewModel(
+                factory = ExpenseViewModelFactory(app, repository)
+            )
+
+            val themePref by model.themePreference.collectAsStateWithLifecycle()
             val systemIsDark = isSystemInDarkTheme()
-            var darkThemeOverride by remember { mutableStateOf<Boolean?>(null) }
-            val darkTheme = darkThemeOverride ?: systemIsDark
+            val darkTheme = when (themePref) {
+                "light" -> false
+                "dark" -> true
+                else -> systemIsDark
+            }
 
             MyApplicationTheme(darkTheme = darkTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val app = this@MainActivity.application
-                    val model: ExpenseViewModel = viewModel(
-                        factory = ExpenseViewModelFactory(app, repository)
-                    )
-
                     AppNavigationShell(
                         viewModel = model,
                         isDark = darkTheme,
                         onThemeToggle = {
-                            darkThemeOverride = !darkTheme
+                            val newPref = if (darkTheme) "light" else "dark"
+                            model.setThemePreference(newPref)
                         }
                     )
                 }

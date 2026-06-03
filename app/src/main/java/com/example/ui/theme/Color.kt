@@ -1,29 +1,46 @@
 package com.example.ui.theme
 
+import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.graphics.Color
 
-// Premium Dark Purple Palette
-val DeepDarkPurple = Color(0xFF12001F)
-val DarkSurface = Color(0xFF1B072C)
-val SurfaceCard = Color(0xFF26103C)
-val GlassBg = Color(0x30FFFFFF)
-val GlassBorder = Color(0x20FFFFFF)
+// Day Mode (Light Theme) Palette
+val LightBackground = Color(0xFFF5F5F7)
+val LightCard = Color(0xFFFFFFFF)
+val LightPrimaryText = Color(0xFF222222)
+val LightSecondaryText = Color(0xFF666666)
+val LightBorder = Color(0xFFE5E5E5)
+val LightIncome = Color(0xFF16A34A)
+val LightExpense = Color(0xFFDC2626)
+val LightButton = Color(0xFF6366F1)
 
-// Accents
-val NeonPurple = Color(0xFFCD9BFF)
-val BrightViolet = Color(0xFFA855F7)
-val DeepIndigo = Color(0xFF6366F1)
-val AccentPink = Color(0xFFEC4899)
-val RadiantGold = Color(0xFFF59E0B)
+// Night Mode (Dark Theme) Palette
+val DarkBackground = Color(0xFF12001F)
+val DarkCard = Color(0xFF2A1242)
+val DarkPrimaryText = Color(0xFFF5EFFF)
+val DarkSecondaryText = Color(0xFFC8B6E2)
+val DarkAccent = Color(0xFFB57CFF) // Lavender
+val DarkIncome = Color(0xFF4ADE80)
+val DarkExpense = Color(0xFFF87171)
 
-// Traditional indicators styled for dark scheme
-val NeonGreen = Color(0xFF34D399)
-val NeonRed = Color(0xFFF87171)
+// Semantic Indicator and Style Extensions for MaterialTheme.colorScheme
+val ColorScheme.income: Color
+    get() = tertiary
 
-// Legacy Material Theme placeholders
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+val ColorScheme.expense: Color
+    get() = error
+
+val ColorScheme.border: Color
+    get() = outline
+
+val ColorScheme.buttonGradient: List<Color>
+    get() = if (this.primary == LightButton) {
+        // Solid/soft professional gradient for Day Mode
+        listOf(LightButton, LightButton)
+    } else {
+        // Premium purple to pink/lavender gradient with highlights for Night Mode
+        listOf(Color(0xFF8B5CF6), Color(0xFFB57CFF), Color(0xFFD946EF))
+    }
+
+val ColorScheme.isDark: Boolean
+    get() = this.background == DarkBackground
+
