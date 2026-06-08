@@ -144,4 +144,29 @@ class ExpenseRepository(private val expenseDao: ExpenseDao) {
     suspend fun deleteItemsByTransaction(transactionId: Int) {
         expenseDao.deleteItemsByTransaction(transactionId)
     }
+
+    // --- DEBT PAYMENTS ---
+    fun getPaymentsForDebt(debtEntryId: Int): Flow<List<DebtPayment>> {
+        return expenseDao.getPaymentsForDebt(debtEntryId)
+    }
+
+    suspend fun getPaymentsForDebtDirect(debtEntryId: Int): List<DebtPayment> {
+        return expenseDao.getPaymentsForDebtDirect(debtEntryId)
+    }
+
+    suspend fun insertDebtPayment(payment: DebtPayment): Long {
+        return expenseDao.insertDebtPayment(payment)
+    }
+
+    suspend fun deleteDebtPayment(payment: DebtPayment) {
+        expenseDao.deleteDebtPayment(payment)
+    }
+
+    suspend fun deletePaymentsByDebtId(debtEntryId: Int) {
+        expenseDao.deletePaymentsByDebtId(debtEntryId)
+    }
+
+    fun getAllPayments(): Flow<List<DebtPayment>> {
+        return expenseDao.getAllPayments()
+    }
 }

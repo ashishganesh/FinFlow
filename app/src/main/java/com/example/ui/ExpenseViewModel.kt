@@ -132,7 +132,18 @@ class ExpenseViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val debtStats: StateFlow<DebtStats> = debtEntries.map { list ->
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val allDebtPayments: StateFlow<List<DebtPayment>> = _selectedAccountId
+        .flatMapLatest { accountId ->
+            if (accountId != -1) {
+                repository.getAllPayments()
+            } else {
+                flowOf(emptyList())
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val debtStats: StateFlow<DebtStats> = combine(debtEntries, allDebtPayments) { entries, payments ->
         val currentTime = System.currentTimeMillis()
         var lentTotal = 0.0
         var recoveredTotal = 0.0
@@ -144,29 +155,37 @@ class ExpenseViewModel(
         var remainingBorrowedTotal = 0.0
         var overdueBorrowedTotal = 0.0
 
-        list.forEach { entry ->
+        val paymentsMap = payments.groupBy { it.debtEntryId }
+
+        entries.forEach { entry ->
+            val entryPaymentsObj = paymentsMap[entry.id] ?: emptyList()
+            val totalPaidForThisEntry = if (entryPaymentsObj.isEmpty()) {
+                if (entry.status.uppercase() == "RECOVERED" || entry.status.uppercase() == "REPAID") {
+                    entry.amount
+                } else {
+                    0.0
+                }
+            } else {
+                entryPaymentsObj.sumOf { it.amount }
+            }
+
+            val remainingForEntry = (entry.amount - totalPaidForThisEntry).coerceAtLeast(0.0)
             val isOverdue = entry.status.uppercase() == "OVERDUE" || 
-                (entry.status.uppercase() != "RECOVERED" && entry.status.uppercase() != "REPAID" && entry.dueDate < currentTime)
+                (entry.status.uppercase() != "RECOVERED" && entry.status.uppercase() != "REPAID" && remainingForEntry > 0.0 && entry.dueDate < currentTime)
             
             if (entry.type == "LENT") {
                 lentTotal += entry.amount
-                if (entry.status.uppercase() == "RECOVERED") {
-                    recoveredTotal += entry.amount
-                } else {
-                    outstandingLentTotal += entry.amount
-                    if (isOverdue) {
-                        overdueLentTotal += entry.amount
-                    }
+                recoveredTotal += totalPaidForThisEntry
+                outstandingLentTotal += remainingForEntry
+                if (isOverdue) {
+                    overdueLentTotal += remainingForEntry
                 }
             } else if (entry.type == "BORROWED") {
                 borrowedTotal += entry.amount
-                if (entry.status.uppercase() == "REPAID") {
-                    repaidTotal += entry.amount
-                } else {
-                    remainingBorrowedTotal += entry.amount
-                    if (isOverdue) {
-                        overdueBorrowedTotal += entry.amount
-                    }
+                repaidTotal += totalPaidForThisEntry
+                remainingBorrowedTotal += remainingForEntry
+                if (isOverdue) {
+                    overdueBorrowedTotal += remainingForEntry
                 }
             }
         }
@@ -196,10 +215,21 @@ class ExpenseViewModel(
     val balanceStats = transactions.map { txList ->
         val totalIncome = txList.filter { it.type == "INCOME" }.sumOf { it.amount }
         val totalExpense = txList.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+        
+        val cashIncome = txList.filter { it.type == "INCOME" && it.paymentMode.equals("Cash", ignoreCase = true) }.sumOf { it.amount }
+        val cashExpense = txList.filter { it.type == "EXPENSE" && it.paymentMode.equals("Cash", ignoreCase = true) }.sumOf { it.amount }
+        val cashBalanceValue = cashIncome - cashExpense
+        
+        val bankIncome = txList.filter { it.type == "INCOME" && !it.paymentMode.equals("Cash", ignoreCase = true) }.sumOf { it.amount }
+        val bankExpense = txList.filter { it.type == "EXPENSE" && !it.paymentMode.equals("Cash", ignoreCase = true) }.sumOf { it.amount }
+        val bankBalanceValue = bankIncome - bankExpense
+        
         BalanceStats(
             income = totalIncome,
             expense = totalExpense,
-            netBalance = totalIncome - totalExpense
+            netBalance = totalIncome - totalExpense,
+            cashBalance = cashBalanceValue,
+            bankBalance = bankBalanceValue
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BalanceStats())
 
@@ -304,41 +334,10 @@ class ExpenseViewModel(
     }
 
     init {
-        // Create a default "Personal" account on initial run if database empty, and manage reactive default selection
+        // Manage reactive workspace selection starting completely empty
         viewModelScope.launch {
             repository.allAccounts.collect { accountList ->
-                if (accountList.isEmpty()) {
-                    val defaultId = repository.insertAccount(
-                        Account(
-                            name = "Personal Account",
-                            pin = null,
-                            color = 0xFF0D9488.toInt(), // Modern Teal accent
-                            currency = "₹"
-                        )
-                    )
-                    _selectedAccountId.value = defaultId.toInt()
-                    prefs.edit().putInt("selected_account_id", defaultId.toInt()).apply()
-                    
-                    // Prepopulate beautiful sample savings goals
-                    repository.insertSavingsGoal(
-                        SavingsGoal(
-                            accountId = defaultId.toInt(),
-                            name = "Emergency Fund",
-                            targetAmount = 50000.0,
-                            currentAmount = 25000.0,
-                            dueDate = "Dec 31, 2026"
-                        )
-                    )
-                    repository.insertSavingsGoal(
-                        SavingsGoal(
-                            accountId = defaultId.toInt(),
-                            name = "New Laptop",
-                            targetAmount = 60000.0,
-                            currentAmount = 32000.0,
-                            dueDate = "Aug 15, 2026"
-                        )
-                    )
-                } else {
+                if (accountList.isNotEmpty()) {
                     val currentId = _selectedAccountId.value
                     if (currentId == -1) {
                         // Startup initialization
@@ -377,6 +376,8 @@ class ExpenseViewModel(
                             }
                         }
                     }
+                } else {
+                    _selectedAccountId.value = -1
                 }
             }
         }
@@ -438,7 +439,8 @@ class ExpenseViewModel(
         currency: String,
         avatar: String = "Personal",
         themePreference: String = "Dark Purple",
-        openingBalance: Double = 0.0
+        openingCashBalance: Double = 0.0,
+        openingBankBalance: Double = 0.0
     ) {
         viewModelScope.launch {
             val trimmedPin = if (pin.isNullOrBlank()) null else pin.trim()
@@ -448,24 +450,42 @@ class ExpenseViewModel(
                 color = color,
                 currency = currency,
                 avatar = avatar,
-                themePreference = themePreference
+                themePreference = themePreference,
+                cashBalance = openingCashBalance,
+                bankBalance = openingBankBalance
             )
             val newId = repository.insertAccount(newAcc)
             
-            // Log opening balance as an initial INCOME transaction
-            if (openingBalance > 0.0) {
-                val initTx = Transaction(
+            // Log opening cash balance as an initial INCOME transaction
+            if (openingCashBalance > 0.0) {
+                val initCashTx = Transaction(
                     accountId = newId.toInt(),
-                    amount = openingBalance,
-                    title = "Opening Balance",
+                    amount = openingCashBalance,
+                    title = "Opening Cash Balance",
                     timestamp = System.currentTimeMillis(),
-                    remarks = "Initial opening balance",
+                    remarks = "Initial opening cash balance",
                     type = "INCOME",
                     category = "Other",
                     isRecurring = false,
                     paymentMode = "Cash"
                 )
-                repository.insertTransaction(initTx)
+                repository.insertTransaction(initCashTx)
+            }
+            
+            // Log opening bank balance as an initial INCOME transaction
+            if (openingBankBalance > 0.0) {
+                val initBankTx = Transaction(
+                    accountId = newId.toInt(),
+                    amount = openingBankBalance,
+                    title = "Opening Bank Balance",
+                    timestamp = System.currentTimeMillis(),
+                    remarks = "Initial opening bank balance",
+                    type = "INCOME",
+                    category = "Other",
+                    isRecurring = false,
+                    paymentMode = "Bank"
+                )
+                repository.insertTransaction(initBankTx)
             }
             
             _selectedAccountId.value = newId.toInt()
@@ -1019,13 +1039,71 @@ class ExpenseViewModel(
 
     fun deleteDebtEntry(entry: DebtEntry) {
         viewModelScope.launch {
+            repository.deletePaymentsByDebtId(entry.id)
             repository.deleteDebtEntry(entry)
         }
     }
 
     fun deleteDebtEntryById(entryId: Int) {
         viewModelScope.launch {
+            repository.deletePaymentsByDebtId(entryId)
             repository.deleteDebtEntryById(entryId)
+        }
+    }
+
+    fun recordDebtPayment(
+        entry: DebtEntry,
+        amount: Double,
+        paymentMethod: String,
+        notes: String = ""
+    ) {
+        viewModelScope.launch {
+            val payment = DebtPayment(
+                debtEntryId = entry.id,
+                amount = amount,
+                timestamp = System.currentTimeMillis(),
+                paymentMethod = paymentMethod,
+                notes = notes
+            )
+            repository.insertDebtPayment(payment)
+
+            val txType = if (entry.type == "LENT") "INCOME" else "EXPENSE"
+            val txTitle = if (entry.type == "LENT") {
+                "Lent Recovered (from ${entry.personName})"
+            } else {
+                "Borrowed Repaid (to ${entry.personName})"
+            }
+
+            val normalizedPaymentMode = when (paymentMethod) {
+                "Cash" -> "Cash"
+                "Bank Account" -> "Bank"
+                "UPI" -> "UPI"
+                "Card" -> "Card"
+                else -> "Bank"
+            }
+
+            val tx = Transaction(
+                accountId = entry.accountId,
+                amount = amount,
+                title = txTitle,
+                timestamp = System.currentTimeMillis(),
+                remarks = notes.ifBlank { "Recorded payment for ${entry.personName}'s debt" },
+                type = txType,
+                category = "Other",
+                isRecurring = false,
+                paymentMode = normalizedPaymentMode
+            )
+            repository.insertTransaction(tx)
+
+            // Auto update status
+            val allPaymentsForDebt = repository.getPaymentsForDebtDirect(entry.id)
+            val totalPaidAll = allPaymentsForDebt.sumOf { it.amount }
+            if (totalPaidAll >= entry.amount) {
+                val finalStatus = if (entry.type == "LENT") "RECOVERED" else "REPAID"
+                repository.updateDebtEntry(entry.copy(status = finalStatus))
+            } else {
+                repository.updateDebtEntry(entry.copy(status = "ACTIVE"))
+            }
         }
     }
 }
@@ -1034,7 +1112,9 @@ class ExpenseViewModel(
 data class BalanceStats(
     val income: Double = 0.0,
     val expense: Double = 0.0,
-    val netBalance: Double = 0.0
+    val netBalance: Double = 0.0,
+    val cashBalance: Double = 0.0,
+    val bankBalance: Double = 0.0
 )
 
 data class DebtStats(

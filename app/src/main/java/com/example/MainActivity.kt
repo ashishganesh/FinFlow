@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -137,6 +138,100 @@ fun AppNavigationShell(
             activeAccount = activeAcc,
             onDismiss = { showProfileManager = false }
         )
+    }
+
+    if (accountsList.isEmpty()) {
+        var showFirstProfileSetup by remember { mutableStateOf(false) }
+
+        if (showFirstProfileSetup) {
+            ProfileConfigDialog(
+                titleLabel = "Instantiate Profile Space",
+                onDismiss = { showFirstProfileSetup = false },
+                onSubmit = { name, currency, pin, colorVal, avatar, theme, cash, bank ->
+                    viewModel.addAccount(
+                        name = name,
+                        pin = pin,
+                        color = colorVal,
+                        currency = currency,
+                        avatar = avatar,
+                        themePreference = theme,
+                        openingCashBalance = cash,
+                        openingBankBalance = bank
+                    )
+                    showFirstProfileSetup = false
+                    Toast.makeText(context, "Welcome to $name Workspace!", Toast.LENGTH_SHORT).show()
+                }
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.widthIn(max = 400.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AccountBalance,
+                        contentDescription = "Wallet Icon",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+
+                Text(
+                    text = "Welcome to FinTrack Pro",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center
+                )
+
+                Text(
+                    text = "Take complete control of your finances. This application is 100% offline-first and private—your transaction itemizations, budgets, and savings goals are stored safely and solely on your device.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 22.sp
+                )
+
+                Text(
+                    text = "To get started, please set up a profile workspace. You can choose a custom name, home currency, theme color, and securely lock it with an optional PIN access code.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                    textAlign = TextAlign.Center,
+                    lineHeight = 18.sp
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = { showFirstProfileSetup = true },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.Add, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Instantiate Profile Space",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+        return
     }
 
     Scaffold(

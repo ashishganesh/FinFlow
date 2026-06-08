@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.example.data.Account
 import com.example.ui.ExpenseViewModel
+import java.util.Locale
 
 @Composable
 fun getAvatarIcon(avatar: String): ImageVector {
@@ -404,7 +405,7 @@ fun ProfileManagerBottomSheet(
         ProfileConfigDialog(
             titleLabel = "Instantiate Profile Space",
             onDismiss = { showAddDialog = false },
-            onSubmit = { name, currency, pin, colorVal, avatar, theme, balance ->
+            onSubmit = { name, currency, pin, colorVal, avatar, theme, cash, bank ->
                 viewModel.addAccount(
                     name = name,
                     pin = pin,
@@ -412,7 +413,8 @@ fun ProfileManagerBottomSheet(
                     currency = currency,
                     avatar = avatar,
                     themePreference = theme,
-                    openingBalance = balance
+                    openingCashBalance = cash,
+                    openingBankBalance = bank
                 )
                 showAddDialog = false
                 Toast.makeText(context, "Welcome to $name Workspace!", Toast.LENGTH_SHORT).show()
@@ -426,7 +428,7 @@ fun ProfileManagerBottomSheet(
             titleLabel = "Configure Workspace Settings",
             existingAccount = activeAccount,
             onDismiss = { showEditDialog = false },
-            onSubmit = { name, currency, pin, colorVal, avatar, theme, _ ->
+            onSubmit = { name, currency, pin, colorVal, avatar, theme, _, _ ->
                 viewModel.updateAccountSettings(
                     account = activeAccount,
                     newName = name,
@@ -451,14 +453,17 @@ fun ProfileConfigDialog(
     titleLabel: String,
     existingAccount: Account? = null,
     onDismiss: () -> Unit,
-    onSubmit: (name: String, currency: String, pin: String?, colorVal: Int, avatar: String, theme: String, openingBalance: Double) -> Unit
+    onSubmit: (name: String, currency: String, pin: String?, colorVal: Int, avatar: String, theme: String, cashBalance: Double, bankBalance: Double) -> Unit
 ) {
     var name by remember { mutableStateOf(existingAccount?.name ?: "") }
     var currency by remember { mutableStateOf(existingAccount?.currency ?: "$") }
     var avatar by remember { mutableStateOf(existingAccount?.avatar ?: "Personal") }
     var selectedColor by remember { mutableStateOf(existingAccount?.color ?: ProfileColorList.first()) }
     var themePreference by remember { mutableStateOf(existingAccount?.themePreference ?: "Dark Purple") }
-    var openingBalanceStr by remember { mutableStateOf("") }
+    
+    // Dual Opening Balances
+    var openingCashStr by remember { mutableStateOf("") }
+    var openingBankStr by remember { mutableStateOf("") }
 
     // PIN configurations
     var pinEnabled by remember { mutableStateOf(existingAccount?.pin != null) }
@@ -470,6 +475,11 @@ fun ProfileConfigDialog(
     val avatars = listOf("Personal", "Business", "Family", "Savings", "Travel")
     val currencies = listOf("$", "€", "£", "₹", "¥")
     val themes = listOf("Dark Purple", "Cozy Teal", "Solar Light")
+
+    // Dynamic balance calculations
+    val liveCash = openingCashStr.toDoubleOrNull() ?: 0.0
+    val liveBank = openingBankStr.toDoubleOrNull() ?: 0.0
+    val liveTotal = liveCash + liveBank
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -515,25 +525,100 @@ fun ProfileConfigDialog(
                     singleLine = true
                 )
 
-                // Opening Balance Field (Only shown during profile creation)
+                // Opening Balance Fields (Only shown during profile creation)
                 if (existingAccount == null) {
-                    OutlinedTextField(
-                        value = openingBalanceStr,
-                        onValueChange = { openingBalanceStr = it },
-                        label = { Text("Opening Balance (Optional)") },
-                        placeholder = { Text("0.00") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            focusedLabelColor = MaterialTheme.colorScheme.primary,
-                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-                        ),
-                        singleLine = true
-                    )
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Opening Balances",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        
+                        OutlinedTextField(
+                            value = openingCashStr,
+                            onValueChange = { input ->
+                                if (input.isEmpty() || input.toDoubleOrNull() != null) {
+                                    openingCashStr = input
+                                }
+                            },
+                            label = { Text("Opening Cash Balance") },
+                            placeholder = { Text("e.g. 5000") },
+                            leadingIcon = { Text("💵", modifier = Modifier.padding(start = 8.dp)) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                            ),
+                            singleLine = true
+                        )
+
+                        OutlinedTextField(
+                            value = openingBankStr,
+                            onValueChange = { input ->
+                                if (input.isEmpty() || input.toDoubleOrNull() != null) {
+                                    openingBankStr = input
+                                }
+                            },
+                            label = { Text("Opening Bank / Online Balance") },
+                            placeholder = { Text("e.g. 12000") },
+                            leadingIcon = { Text("🏦", modifier = Modifier.padding(start = 8.dp)) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                            ),
+                            singleLine = true
+                        )
+
+                        // Real-time live total calculation card
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "Calculated Total Balance",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "Cash + Bank Balance",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Text(
+                                    text = "$currency${String.format(Locale.getDefault(), "%,.2f", liveTotal)}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Black,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
                 }
 
                 // Currency selector
@@ -751,8 +836,15 @@ fun ProfileConfigDialog(
                                     return@Button
                                 }
                             }
+                            
+                            val liveCashVal = openingCashStr.toDoubleOrNull() ?: 0.0
+                            val liveBankVal = openingBankStr.toDoubleOrNull() ?: 0.0
+                            
+                            if (liveCashVal < 0.0 || liveBankVal < 0.0) {
+                                errorMessage = "Opening balances cannot be negative values."
+                                return@Button
+                            }
 
-                            val baseBalance = openingBalanceStr.toDoubleOrNull() ?: 0.0
                             onSubmit(
                                 name,
                                 currency,
@@ -760,7 +852,8 @@ fun ProfileConfigDialog(
                                 selectedColor,
                                 avatar,
                                 themePreference,
-                                baseBalance
+                                liveCashVal,
+                                liveBankVal
                             )
                         },
                         colors = ButtonDefaults.buttonColors(

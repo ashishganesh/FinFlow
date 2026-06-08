@@ -92,8 +92,8 @@ fun AddEditTransactionDialog(
     // Simulated receipt image path/existence
     var imagePath by remember { mutableStateOf(transaction?.imagePath) }
 
-    var isItemized by remember { mutableStateOf(initialItems.isNotEmpty()) }
-    var itemizedItems by remember { mutableStateOf(initialItems) }
+    var isItemized by remember(initialItems) { mutableStateOf(initialItems.isNotEmpty()) }
+    var itemizedItems by remember(initialItems) { mutableStateOf(initialItems) }
 
     // Item builder state
     var newItemName by remember { mutableStateOf("") }
@@ -954,21 +954,53 @@ fun AddEditTransactionDialog(
                         Text(paymentMode, fontFamily = FontFamily.Monospace, color = Color.Black)
                     }
 
-                    Text(
-                        "--------------------------------",
-                        fontFamily = FontFamily.Monospace,
-                        color = Color.Gray
-                    )
+                    if (isItemized && transactionType == "EXPENSE" && itemizedItems.isNotEmpty()) {
+                        Text(
+                            "ITEMS LIST:",
+                            fontFamily = FontFamily.Monospace,
+                            color = Color.Black,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.align(Alignment.Start)
+                        )
+                        itemizedItems.forEach { item ->
+                            val itemTotal = item.quantity * item.pricePerUnit
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "${item.name} (${String.format(Locale.getDefault(), "%.1f", item.quantity)} ${item.unitType})",
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color.Black,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    "$currencySymbol${String.format(Locale.getDefault(), "%.2f", itemTotal)}",
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color.Black
+                                )
+                            }
+                        }
+                        Text(
+                            "--------------------------------",
+                            fontFamily = FontFamily.Monospace,
+                            color = Color.Gray
+                        )
+                    }
 
                     // Financial calculations details
-                    val amountParsed = amountStr.toDoubleOrNull() ?: 0.0
+                    val amountParsed = if (isItemized && transactionType == "EXPENSE") {
+                        itemizedItems.sumOf { it.quantity * it.pricePerUnit }
+                    } else {
+                        amountStr.toDoubleOrNull() ?: 0.0
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("SUBTOTAL:", fontFamily = FontFamily.Monospace, color = Color.Black, style = MaterialTheme.typography.labelLarge)
-                        Text("$currencySymbol${String.format("%.2f", amountParsed)}", fontFamily = FontFamily.Monospace, color = Color.Black)
+                        Text("$currencySymbol${String.format(Locale.getDefault(), "%.2f", amountParsed)}", fontFamily = FontFamily.Monospace, color = Color.Black)
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),

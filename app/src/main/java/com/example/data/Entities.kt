@@ -11,7 +11,9 @@ data class Account(
     val color: Int = 0xFF6200EE.toInt(), // RGB Color representation
     val currency: String = "USD", // "USD", "EUR", "GBP", "INR", "JPY", etc.
     val avatar: String = "Personal", // "Personal", "Business", "Family", "Savings", "Travel"
-    val themePreference: String = "Dark Purple"
+    val themePreference: String = "Dark Purple",
+    val cashBalance: Double = 0.0,
+    val bankBalance: Double = 0.0
 )
 
 @Entity(tableName = "transactions")
@@ -85,5 +87,15 @@ data class DebtEntry(
     val reminderDate: Long? = null,
     val reminderNotes: String? = null,
     val repeatReminder: Boolean = false
+)
+
+@Entity(tableName = "debt_payments")
+data class DebtPayment(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val debtEntryId: Int,
+    val amount: Double,
+    val timestamp: Long,
+    val paymentMethod: String, // "Cash", "Bank Account", "UPI", "Card"
+    val notes: String = ""
 )
 

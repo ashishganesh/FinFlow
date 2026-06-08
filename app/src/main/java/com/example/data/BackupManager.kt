@@ -63,6 +63,8 @@ object BackupManager {
                 put("currency", acc.currency)
                 put("avatar", acc.avatar)
                 put("themePreference", acc.themePreference)
+                put("cashBalance", acc.cashBalance)
+                put("bankBalance", acc.bankBalance)
             }
             accountsArray.put(accObj)
         }
@@ -129,7 +131,9 @@ object BackupManager {
                             color = accObj.optInt("color", 0xFF6200EE.toInt()),
                             currency = accObj.optString("currency", "USD"),
                             avatar = accObj.optString("avatar", "Personal"),
-                            themePreference = accObj.optString("themePreference", "Dark Purple")
+                            themePreference = accObj.optString("themePreference", "Dark Purple"),
+                            cashBalance = accObj.optDouble("cashBalance", 0.0),
+                            bankBalance = accObj.optDouble("bankBalance", 0.0)
                         )
                     )
                 }

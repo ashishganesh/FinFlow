@@ -122,4 +122,23 @@ interface ExpenseDao {
 
     @Query("DELETE FROM transaction_items WHERE transactionId = :transactionId")
     suspend fun deleteItemsByTransaction(transactionId: Int)
+
+    // --- DEBT PAYMENTS ---
+    @Query("SELECT * FROM debt_payments WHERE debtEntryId = :debtEntryId ORDER BY timestamp DESC")
+    fun getPaymentsForDebt(debtEntryId: Int): Flow<List<DebtPayment>>
+
+    @Query("SELECT * FROM debt_payments WHERE debtEntryId = :debtEntryId")
+    suspend fun getPaymentsForDebtDirect(debtEntryId: Int): List<DebtPayment>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertDebtPayment(payment: DebtPayment): Long
+
+    @Delete
+    suspend fun deleteDebtPayment(payment: DebtPayment)
+
+    @Query("DELETE FROM debt_payments WHERE debtEntryId = :debtEntryId")
+    suspend fun deletePaymentsByDebtId(debtEntryId: Int)
+
+    @Query("SELECT * FROM debt_payments ORDER BY timestamp DESC")
+    fun getAllPayments(): Flow<List<DebtPayment>>
 }

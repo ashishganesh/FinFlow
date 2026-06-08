@@ -200,49 +200,65 @@ fun DashboardScreen(
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                 
-                // GLASSMORPHISM BALANCES CARD
+                // PREMIUM GLASSMORPHISM BALANCE SUMMARY CARD
                 val isDark = MaterialTheme.colorScheme.isDark
+                val currencySymbol = activeAcc?.currency ?: "₹"
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isDark) Color(0x2A2A1242) else MaterialTheme.colorScheme.surface
+                        containerColor = if (isDark) Color(0x3B1F0D3D) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                     ),
                     border = BorderStroke(
                         1.5.dp,
-                        if (isDark) Brush.linearGradient(listOf(Color(0x33FFFFFF), Color(0x33B57CFF)))
-                        else SolidColor(MaterialTheme.colorScheme.outline)
+                        if (isDark) Brush.linearGradient(listOf(Color(0x55FFFFFF), Color(0x33B57CFF)))
+                        else SolidColor(MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                     ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 2.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 4.dp)
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+                        // --- TOP SECTION: TOTAL NET BALANCE ---
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AccountBalanceWallet,
+                                        contentDescription = "Total Wallet",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        "TOTAL NET BALANCE",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        letterSpacing = 1.2.sp
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    "TOTAL NET BALANCE",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    letterSpacing = 1.sp
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "₹${String.format(Locale.getDefault(), "%,.2f", stats.netBalance)}",
-                                    style = MaterialTheme.typography.headlineLarge,
-                                    fontWeight = FontWeight.ExtraBold,
+                                    text = "$currencySymbol${String.format(Locale.getDefault(), "%,.2f", stats.netBalance)}",
+                                    style = MaterialTheme.typography.headlineLarge.copy(
+                                        fontSize = 32.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        letterSpacing = (-0.5).sp
+                                    ),
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
-                            // Glow indicator
+                            // Premium glowing/pulsing accent indicator
                             Box(
                                 modifier = Modifier
                                     .size(12.dp)
@@ -250,11 +266,87 @@ fun DashboardScreen(
                             )
                         }
 
+                        // Divider line above middle section
                         HorizontalDivider(
-                            color = if (isDark) Color(0x20FFFFFF) else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                            color = if (isDark) Color(0x1AFFFFFF) else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
                             thickness = 1.dp
                         )
 
+                        // --- MIDDLE SECTION: TWO BALANCE SEGMENTS SIDE-BY-SIDE ---
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            // Left Segment: Cash Balance
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(
+                                        if (isDark) Color(0x1F2A1A4A) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                        shape = RoundedCornerShape(16.dp)
+                                    )
+                                    .padding(12.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text("💵", fontSize = 16.sp)
+                                    Text(
+                                        text = "Cash Balance",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "$currencySymbol${String.format(Locale.getDefault(), "%,.2f", stats.cashBalance)}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+
+                            // Right Segment: Bank / Online Balance
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(
+                                        if (isDark) Color(0x1F2A1A4A) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                        shape = RoundedCornerShape(16.dp)
+                                    )
+                                    .padding(12.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text("🏦", fontSize = 16.sp)
+                                    Text(
+                                        text = "Bank / Online",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "$currencySymbol${String.format(Locale.getDefault(), "%,.2f", stats.bankBalance)}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+
+                        // Divider line below middle section
+                        HorizontalDivider(
+                            color = if (isDark) Color(0x1AFFFFFF) else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                            thickness = 1.dp
+                        )
+
+                        // --- BOTTOM SECTION: MONTH OPENING & CARRY FORWARD STATUS ---
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -264,28 +356,37 @@ fun DashboardScreen(
                                 Text(
                                     "Month Opening",
                                     style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Medium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                                Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "₹${String.format(Locale.getDefault(), "%,.2f", currentRecord.openingBalance)}",
+                                    text = "$currencySymbol${String.format(Locale.getDefault(), "%,.2f", currentRecord.openingBalance)}",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
 
-                            // Carry Forward Status Row
+                            // Carry Forward Status Row (Pill with indicators)
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 modifier = Modifier
-                                    .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    .background(
+                                        if (carryForwardEnabledRaw) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f)
+                                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(6.dp)
-                                        .background(if (carryForwardEnabledRaw) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                                        .size(8.dp)
+                                        .background(
+                                            if (carryForwardEnabledRaw) Color(0xFF4CAF50) else MaterialTheme.colorScheme.outlineVariant,
+                                            CircleShape
+                                        )
                                 )
                                 Text(
                                     text = if (carryForwardEnabledRaw) "Forwarding On" else "Forwarding Off",
@@ -2778,6 +2879,10 @@ fun AccountsScreen(
     var accountPin by remember { mutableStateOf("") }
     var selectedCurrency by remember { mutableStateOf("$") }
     var selectedColor by remember { mutableStateOf(ProfileColors.first()) }
+    
+    var accountCashBalanceStr by remember { mutableStateOf("") }
+    var accountBankBalanceStr by remember { mutableStateOf("") }
+    var formErrorMessage by remember { mutableStateOf<String?>(null) }
 
     LazyColumn(
         modifier = Modifier
@@ -2883,11 +2988,95 @@ fun AccountsScreen(
                             }
                         }
 
+                        // Opening Balances
+                        Text(
+                            "Opening Balances",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+
+                        OutlinedTextField(
+                            value = accountCashBalanceStr,
+                            onValueChange = { input ->
+                                if (input.isEmpty() || input.toDoubleOrNull() != null) {
+                                    accountCashBalanceStr = input
+                                    formErrorMessage = null
+                                }
+                            },
+                            label = { Text("Opening Cash Balance") },
+                            placeholder = { Text("e.g. 2500") },
+                            leadingIcon = { Text("💵", modifier = Modifier.padding(start = 8.dp)) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+
+                        OutlinedTextField(
+                            value = accountBankBalanceStr,
+                            onValueChange = { input ->
+                                if (input.isEmpty() || input.toDoubleOrNull() != null) {
+                                    accountBankBalanceStr = input
+                                    formErrorMessage = null
+                                }
+                            },
+                            label = { Text("Opening Bank / Online Balance") },
+                            placeholder = { Text("e.g. 12000") },
+                            leadingIcon = { Text("🏦", modifier = Modifier.padding(start = 8.dp)) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+
+                        // Real-time live total preview
+                        val inlineCashVal = accountCashBalanceStr.toDoubleOrNull() ?: 0.0
+                        val inlineBankVal = accountBankBalanceStr.toDoubleOrNull() ?: 0.0
+                        val inlineTotalVal = inlineCashVal + inlineBankVal
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "Total Balance Preview",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = "Cash + Bank Balance",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Text(
+                                    text = "$selectedCurrency${String.format(Locale.getDefault(), "%,.2f", inlineTotalVal)}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Black,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+
                         // Theme dynamic color row selector
                         Text(
                             "Profile Design Palette Color",
                             style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(top = 4.dp)
                         )
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -2920,16 +3109,41 @@ fun AccountsScreen(
                             }
                         }
 
+                        // Error message panel
+                        formErrorMessage?.let { errMsg ->
+                            Text(
+                                text = errMsg,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+
                         Button(
                             onClick = {
+                                val cashVal = accountCashBalanceStr.toDoubleOrNull() ?: 0.0
+                                val bankVal = accountBankBalanceStr.toDoubleOrNull() ?: 0.0
+
+                                if (cashVal < 0.0 || bankVal < 0.0) {
+                                    formErrorMessage = "Opening balances cannot be negative values."
+                                    return@Button
+                                }
+
                                 viewModel.addAccount(
                                     name = accountName.trim(),
                                     pin = if (accountPin.length == 4) accountPin else null,
                                     color = selectedColor,
-                                    currency = selectedCurrency
+                                    currency = selectedCurrency,
+                                    openingCashBalance = cashVal,
+                                    openingBankBalance = bankVal
                                 )
                                 accountName = ""
                                 accountPin = ""
+                                accountCashBalanceStr = ""
+                                accountBankBalanceStr = ""
+                                formErrorMessage = null
                                 showCreateForm = false
                             },
                             enabled = accountName.isNotBlank(),
@@ -3813,12 +4027,23 @@ fun MoreHubScreen(viewModel: ExpenseViewModel) {
     }
 }
 
+data class DebtTimelineEvent(
+    val title: String,
+    val amount: Double,
+    val paymentMethod: String,
+    val timestamp: Long,
+    val remaining: Double,
+    val isInitial: Boolean,
+    val notes: String = ""
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DebtModuleScreen(viewModel: ExpenseViewModel) {
     val activeAcc: Account? = viewModel.activeAccount.collectAsStateWithLifecycle().value
     val debtEntries: List<DebtEntry> = viewModel.debtEntries.collectAsStateWithLifecycle().value
     val dStats: DebtStats = viewModel.debtStats.collectAsStateWithLifecycle().value
+    val allPayments = viewModel.allDebtPayments.collectAsStateWithLifecycle().value
     val currency = activeAcc?.currency ?: "₹"
 
     var selectedDebtType by remember { mutableStateOf("LENT") } // "LENT" or "BORROWED"
@@ -3827,6 +4052,8 @@ fun DebtModuleScreen(viewModel: ExpenseViewModel) {
 
     var showAddDialog by remember { mutableStateOf(false) }
     var editingEntry by remember { mutableStateOf<DebtEntry?>(null) }
+    var activePaymentEntry by remember { mutableStateOf<DebtEntry?>(null) }
+    var expandedEntryIds by remember { mutableStateOf(setOf<Int>()) }
 
     val context = LocalContext.current
     val sdf = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
@@ -4060,11 +4287,32 @@ fun DebtModuleScreen(viewModel: ExpenseViewModel) {
             ) {
                 items(filteredEntries) { entry ->
                     val now = System.currentTimeMillis()
-                    val actualStatus = remember(entry) {
+                    
+                    val paymentsForThisEntry = remember(allPayments, entry) {
+                        allPayments.filter { it.debtEntryId == entry.id }
+                    }
+
+                    val totalPaid = remember(paymentsForThisEntry, entry) {
+                        if (paymentsForThisEntry.isEmpty()) {
+                            if (entry.status.uppercase() == "RECOVERED" || entry.status.uppercase() == "REPAID") {
+                                entry.amount
+                            } else {
+                                0.0
+                            }
+                        } else {
+                            paymentsForThisEntry.sumOf { it.amount }
+                        }
+                    }
+
+                    val remainingBalance = remember(entry, totalPaid) {
+                        (entry.amount - totalPaid).coerceAtLeast(0.0)
+                    }
+
+                    val actualStatus = remember(entry, remainingBalance) {
                         val isOverdue = entry.status.uppercase() == "OVERDUE" || 
-                            (entry.status.uppercase() != "RECOVERED" && entry.status.uppercase() != "REPAID" && entry.dueDate < now)
+                            (entry.status.uppercase() != "RECOVERED" && entry.status.uppercase() != "REPAID" && remainingBalance > 0.0 && entry.dueDate < now)
                         
-                        if (isOverdue) "OVERDUE" else entry.status.uppercase()
+                        if (isOverdue) "OVERDUE" else if (remainingBalance <= 0.0) (if (entry.type == "LENT") "RECOVERED" else "REPAID") else entry.status.uppercase()
                     }
 
                     val colorIndicator = when (actualStatus) {
@@ -4074,15 +4322,27 @@ fun DebtModuleScreen(viewModel: ExpenseViewModel) {
                         else -> MaterialTheme.colorScheme.tertiary
                     }
 
+                    val isExpanded = expandedEntryIds.contains(entry.id)
+                    val toggleExpand = {
+                        expandedEntryIds = if (isExpanded) {
+                            expandedEntryIds - entry.id
+                        } else {
+                            expandedEntryIds + entry.id
+                        }
+                    }
+
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { toggleExpand() }
+                            .animateContentSize(),
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        border = BorderStroke(1.dp, colorIndicator.copy(alpha = 0.2f))
+                        border = BorderStroke(1.dp, colorIndicator.copy(alpha = 0.25f))
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             // Header: Name, Status Cap, Amount
                             Row(
@@ -4098,17 +4358,29 @@ fun DebtModuleScreen(viewModel: ExpenseViewModel) {
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     if (!entry.phoneNumber.isNullOrBlank()) {
-                                        Text(
-                                            entry.phoneNumber,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            modifier = Modifier.padding(top = 2.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Phone,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                            Text(
+                                                entry.phoneNumber,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
                                 }
 
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(
-                                        "$currency${String.format(Locale.getDefault(), "%,.1f", entry.amount)}",
+                                        "$currency${String.format(Locale.getDefault(), "%,.1f", remainingBalance)}",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Black,
                                         color = if (entry.type == "LENT") MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
@@ -4134,10 +4406,44 @@ fun DebtModuleScreen(viewModel: ExpenseViewModel) {
                                 Text(
                                     entry.notes,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.padding(vertical = 2.dp)
                                 )
                             }
 
+                            // Progress Indicator visual bar
+                            if (entry.amount > 0.0) {
+                                val progressFraction = (totalPaid / entry.amount).toFloat().coerceIn(0f, 1f)
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    LinearProgressIndicator(
+                                        progress = { progressFraction },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(6.dp)
+                                            .clip(RoundedCornerShape(3.dp)),
+                                        color = if (entry.type == "LENT") MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error,
+                                        trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = "Paid: $currency${String.format(Locale.getDefault(), "%,.0f", totalPaid)} (${(progressFraction * 100).toInt()}%)",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = "Total: $currency${String.format(Locale.getDefault(), "%,.0f", entry.amount)}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Dates metadata
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -4157,37 +4463,41 @@ fun DebtModuleScreen(viewModel: ExpenseViewModel) {
                                     )
                                 }
 
-                                // Interactive Quick Actions
+                                // Interactive Actions inside card
                                 Row(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    // Mark as recovered/repaid button
-                                    if (actualStatus != "RECOVERED" && actualStatus != "REPAID") {
+                                    if (remainingBalance > 0.0) {
                                         IconButton(
-                                            onClick = {
-                                                val nextStatus = if (entry.type == "LENT") "RECOVERED" else "REPAID"
-                                                viewModel.updateDebtEntry(entry.copy(status = nextStatus))
-                                                Toast.makeText(context, "Marked as complete!", Toast.LENGTH_SHORT).show()
-                                            },
+                                            onClick = { activePaymentEntry = entry },
                                             modifier = Modifier
                                                 .size(34.dp)
-                                                .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f), CircleShape)
+                                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape)
                                         ) {
-                                            Icon(Icons.Default.Check, contentDescription = "Complete", tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(16.dp))
+                                            Icon(
+                                                imageVector = Icons.Default.Payments,
+                                                contentDescription = "Log Payment",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(16.dp)
+                                            )
                                         }
                                     }
 
-                                    // Edit details button
                                     IconButton(
                                         onClick = { editingEntry = entry },
                                         modifier = Modifier
                                             .size(34.dp)
-                                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape)
+                                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), CircleShape)
                                     ) {
-                                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Edit Details",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(16.dp)
+                                        )
                                     }
 
-                                    // Delete details button
                                     IconButton(
                                         onClick = {
                                             viewModel.deleteDebtEntry(entry)
@@ -4195,9 +4505,153 @@ fun DebtModuleScreen(viewModel: ExpenseViewModel) {
                                         },
                                         modifier = Modifier
                                             .size(34.dp)
-                                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.15f), CircleShape)
+                                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.1F), CircleShape)
                                     ) {
-                                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Delete Entry",
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            // History timeline drawer
+                            if (isExpanded) {
+                                val timelineEvents = remember(entry, paymentsForThisEntry) {
+                                    val list = mutableListOf<DebtTimelineEvent>()
+                                    list.add(
+                                        DebtTimelineEvent(
+                                            title = if (entry.type == "LENT") "Money Lent" else "Money Borrowed",
+                                            amount = entry.amount,
+                                            paymentMethod = "Initial Setup",
+                                            timestamp = entry.entryDate,
+                                            remaining = entry.amount,
+                                            isInitial = true
+                                        )
+                                    )
+
+                                    var runningRemaining = entry.amount
+                                    val sortedPayments = paymentsForThisEntry.sortedBy { it.timestamp }
+                                    sortedPayments.forEach { pay ->
+                                        runningRemaining = (runningRemaining - pay.amount).coerceAtLeast(0.0)
+                                        list.add(
+                                            DebtTimelineEvent(
+                                                title = if (entry.type == "LENT") "Received Partial Payment" else "Repaid Partial Debt",
+                                                amount = pay.amount,
+                                                paymentMethod = pay.paymentMethod,
+                                                timestamp = pay.timestamp,
+                                                remaining = runningRemaining,
+                                                isInitial = false,
+                                                notes = pay.notes
+                                            )
+                                        )
+                                    }
+
+                                    if (sortedPayments.isEmpty() && (entry.status.uppercase() == "RECOVERED" || entry.status.uppercase() == "REPAID")) {
+                                        list.add(
+                                            DebtTimelineEvent(
+                                                title = if (entry.type == "LENT") "Fully Recovered" else "Fully Repaid",
+                                                amount = entry.amount,
+                                                paymentMethod = "Direct Settle",
+                                                timestamp = entry.dueDate,
+                                                remaining = 0.0,
+                                                isInitial = false
+                                            )
+                                        )
+                                    }
+                                    list
+                                }
+
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                                    modifier = Modifier.padding(top = 10.dp)
+                                ) {
+                                    HorizontalDivider(
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f),
+                                        thickness = 1.dp
+                                    )
+
+                                    Text(
+                                        text = "History Timeline",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+
+                                    timelineEvents.forEachIndexed { idx, ev ->
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(8.dp)
+                                                        .background(
+                                                            if (ev.isInitial) MaterialTheme.colorScheme.outline else colorIndicator,
+                                                            CircleShape
+                                                        )
+                                                )
+                                                if (idx < timelineEvents.size - 1) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .width(1.5.dp)
+                                                            .height(38.dp)
+                                                            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f))
+                                                    )
+                                                }
+                                            }
+
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                ) {
+                                                    Text(
+                                                        text = ev.title,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                    Text(
+                                                        text = "$currency${String.format(Locale.getDefault(), "%,.1f", ev.amount)}",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = if (entry.type == "LENT") MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+                                                    )
+                                                }
+
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                ) {
+                                                    val pathDesc = if (ev.isInitial) "Initial Setup" else "via ${ev.paymentMethod}"
+                                                    Text(
+                                                        text = "$pathDesc • ${SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(ev.timestamp))}",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                    Text(
+                                                        text = "Remaining: $currency${String.format(Locale.getDefault(), "%,.1f", ev.remaining)}",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+
+                                                if (!ev.notes.isBlank()) {
+                                                    Text(
+                                                        text = "\"${ev.notes}\"",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                                        modifier = Modifier.padding(top = 2.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -4214,12 +4668,12 @@ fun DebtModuleScreen(viewModel: ExpenseViewModel) {
             type = selectedDebtType,
             entry = null,
             onDismiss = { showAddDialog = false },
-            onSave = { name, amt, notes, pNo, due ->
+            onSave = { name, amt, notes, pNo, entryD, due ->
                 viewModel.insertDebtEntry(
                     type = selectedDebtType,
                     personName = name,
                     amount = amt,
-                    entryDate = System.currentTimeMillis(),
+                    entryDate = entryD,
                     dueDate = due,
                     notes = notes,
                     phoneNumber = pNo
@@ -4234,19 +4688,207 @@ fun DebtModuleScreen(viewModel: ExpenseViewModel) {
             type = editingEntry!!.type,
             entry = editingEntry,
             onDismiss = { editingEntry = null },
-            onSave = { name, amt, notes, pNo, due ->
+            onSave = { name, amt, notes, pNo, entryD, due ->
                 viewModel.updateDebtEntry(
                     editingEntry!!.copy(
                         personName = name,
                         amount = amt,
                         notes = notes,
                         phoneNumber = pNo,
+                        entryDate = entryD,
                         dueDate = due
                     )
                 )
                 editingEntry = null
             }
         )
+    }
+
+    activePaymentEntry?.let { entry ->
+        val paymentsForThisEntry = allPayments.filter { it.debtEntryId == entry.id }
+        val totalPaid = if (paymentsForThisEntry.isEmpty()) {
+            if (entry.status.uppercase() == "RECOVERED" || entry.status.uppercase() == "REPAID") entry.amount else 0.0
+        } else {
+            paymentsForThisEntry.sumOf { it.amount }
+        }
+        val remainingBalance = (entry.amount - totalPaid).coerceAtLeast(0.0)
+
+        RecordPaymentDialog(
+            entry = entry,
+            remainingBalance = remainingBalance,
+            currency = currency,
+            onDismiss = { activePaymentEntry = null },
+            onSubmit = { amt, pMethod, notes ->
+                viewModel.recordDebtPayment(entry, amt, pMethod, notes)
+                activePaymentEntry = null
+                Toast.makeText(context, "Payment recorded successfully!", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RecordPaymentDialog(
+    entry: DebtEntry,
+    remainingBalance: Double,
+    currency: String,
+    onDismiss: () -> Unit,
+    onSubmit: (amount: Double, paymentMethod: String, notes: String) -> Unit
+) {
+    var amountStr by remember { mutableStateOf(String.format(Locale.US, "%.1f", remainingBalance)) }
+    var selectedMethod by remember { mutableStateOf("Cash") } // "Cash", "Bank Account", "UPI", "Card"
+    var notes by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val row1 = listOf("Cash", "Bank Account")
+    val row2 = listOf("UPI", "Card")
+    val paymentEmojis = mapOf("Cash" to "💵", "Bank Account" to "🏦", "UPI" to "⚡", "Card" to "💳")
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = if (entry.type == "LENT") "Receive Payment" else "Make Repayment",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Text(
+                    text = "Recording transaction for ${entry.personName}. Remaining balance to settle is $currency${String.format(Locale.getDefault(), "%,.1f", remainingBalance)}.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                OutlinedTextField(
+                    value = amountStr,
+                    onValueChange = { input ->
+                        if (input.isEmpty() || input.toDoubleOrNull() != null) {
+                            amountStr = input
+                            errorMessage = null
+                        }
+                    },
+                    label = { Text("Amount") },
+                    placeholder = { Text("e.g. 500") },
+                    leadingIcon = { Text(currency, modifier = Modifier.padding(start = 8.dp), fontWeight = FontWeight.Bold) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                Text(
+                    text = "Payment Method",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(row1, row2).forEach { row ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            row.forEach { method ->
+                                val isSelected = selectedMethod == method
+                                val emoji = paymentEmojis[method] ?: ""
+                                
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(
+                                            if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                            else MaterialTheme.colorScheme.surfaceVariant
+                                        )
+                                        .border(
+                                            1.dp,
+                                            if (isSelected) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                                            RoundedCornerShape(10.dp)
+                                        )
+                                        .clickable { selectedMethod = method }
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(emoji, style = MaterialTheme.typography.bodyMedium)
+                                        Text(
+                                            text = method,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Notes (Optional)") },
+                    placeholder = { Text("e.g. UPI payment") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                errorMessage?.let { err ->
+                    Text(
+                        text = err,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            val amt = amountStr.toDoubleOrNull() ?: 0.0
+                            if (amt <= 0.0) {
+                                errorMessage = "Please enter a valid positive amount."
+                                return@Button
+                            }
+                            if (amt > remainingBalance + 0.01) {
+                                errorMessage = "Amount cannot exceed the remaining balance ($currency${String.format(Locale.getDefault(), "%,.1f", remainingBalance)})."
+                                return@Button
+                            }
+                            onSubmit(amt, selectedMethod, notes)
+                        }
+                    ) {
+                        Text("Record")
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -4256,17 +4898,23 @@ fun DebtEntryDialog(
     type: String,
     entry: DebtEntry?,
     onDismiss: () -> Unit,
-    onSave: (name: String, amount: Double, notes: String, phoneNumber: String?, dueDate: Long) -> Unit
+    onSave: (name: String, amount: Double, notes: String, phoneNumber: String?, entryDate: Long, dueDate: Long) -> Unit
 ) {
+    val context = LocalContext.current
     var personName by remember { mutableStateOf(entry?.personName ?: "") }
     var amountStr by remember { mutableStateOf(entry?.amount?.toString() ?: "") }
     var notes by remember { mutableStateOf(entry?.notes ?: "") }
     var phoneNumber by remember { mutableStateOf(entry?.phoneNumber ?: "") }
     
-    // Default to today + 1 month for due date
+    var entryDateMs by remember { mutableStateOf(entry?.entryDate ?: System.currentTimeMillis()) }
     var dueDateMs by remember { mutableStateOf(entry?.dueDate ?: (System.currentTimeMillis() + (30L * 24 * 60 * 60 * 1000L))) }
 
-    val sdf = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
+    val entryCalendar = remember(entryDateMs) {
+        Calendar.getInstance().apply { timeInMillis = entryDateMs }
+    }
+    val dueCalendar = remember(dueDateMs) {
+        Calendar.getInstance().apply { timeInMillis = dueDateMs }
+    }
 
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -4276,7 +4924,9 @@ fun DebtEntryDialog(
             modifier = Modifier.padding(16.dp)
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
+                modifier = Modifier
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
@@ -4327,14 +4977,160 @@ fun DebtEntryDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Simple date selector text showing Days Offset picker quick buttons
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Recording Date and Time selection
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        "Due Date: ${sdf.format(Date(dueDateMs))}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
+                        text = "Recording Date & Time",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Entry Date Button
+                        Card(
+                            onClick = {
+                                android.app.DatePickerDialog(
+                                    context,
+                                    { _, year, month, dayOfMonth ->
+                                        entryCalendar.set(Calendar.YEAR, year)
+                                        entryCalendar.set(Calendar.MONTH, month)
+                                        entryCalendar.set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                                        entryDateMs = entryCalendar.timeInMillis
+                                    },
+                                    entryCalendar.get(Calendar.YEAR),
+                                    entryCalendar.get(Calendar.MONTH),
+                                    entryCalendar.get(Calendar.DAY_OF_MONTH)
+                                ).show()
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(Icons.Default.CalendarToday, contentDescription = "Date", modifier = Modifier.size(16.dp))
+                                Column {
+                                    Text("Lent/Borrowed Date", style = MaterialTheme.typography.labelSmall)
+                                    Text(SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(entryDateMs)), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+
+                        // Entry Time Button
+                        Card(
+                            onClick = {
+                                android.app.TimePickerDialog(
+                                    context,
+                                    { _, hourOfDay, minute ->
+                                        entryCalendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                                        entryCalendar.set(Calendar.MINUTE, minute)
+                                        entryDateMs = entryCalendar.timeInMillis
+                                    },
+                                    entryCalendar.get(Calendar.HOUR_OF_DAY),
+                                    entryCalendar.get(Calendar.MINUTE),
+                                    false
+                                ).show()
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(Icons.Default.Schedule, contentDescription = "Time", modifier = Modifier.size(16.dp))
+                                Column {
+                                    Text("Time", style = MaterialTheme.typography.labelSmall)
+                                    Text(SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(entryDateMs)), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Due Date and Time selection
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "End Due Date & Time",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Due Date Button
+                        Card(
+                            onClick = {
+                                android.app.DatePickerDialog(
+                                    context,
+                                    { _, year, month, dayOfMonth ->
+                                        dueCalendar.set(Calendar.YEAR, year)
+                                        dueCalendar.set(Calendar.MONTH, month)
+                                        dueCalendar.set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                                        dueDateMs = dueCalendar.timeInMillis
+                                    },
+                                    dueCalendar.get(Calendar.YEAR),
+                                    dueCalendar.get(Calendar.MONTH),
+                                    dueCalendar.get(Calendar.DAY_OF_MONTH)
+                                ).show()
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(Icons.Default.CalendarToday, contentDescription = "Due Date", modifier = Modifier.size(16.dp))
+                                Column {
+                                    Text("Due Date", style = MaterialTheme.typography.labelSmall)
+                                    Text(SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(dueDateMs)), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+
+                        // Due Time Button
+                        Card(
+                            onClick = {
+                                android.app.TimePickerDialog(
+                                    context,
+                                    { _, hourOfDay, minute ->
+                                        dueCalendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                                        dueCalendar.set(Calendar.MINUTE, minute)
+                                        dueDateMs = dueCalendar.timeInMillis
+                                    },
+                                    dueCalendar.get(Calendar.HOUR_OF_DAY),
+                                    dueCalendar.get(Calendar.MINUTE),
+                                    false
+                                ).show()
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(Icons.Default.Schedule, contentDescription = "Time", modifier = Modifier.size(16.dp))
+                                Column {
+                                    Text("Time", style = MaterialTheme.typography.labelSmall)
+                                    Text(SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(dueDateMs)), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+
+                    // Quick offset options mapping relative to selected entryDateMs
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -4347,7 +5143,7 @@ fun DebtEntryDialog(
                         ).forEach { (days, label) ->
                             Button(
                                 onClick = { 
-                                    dueDateMs = System.currentTimeMillis() + (days * 24L * 60 * 60 * 1000L) 
+                                    dueDateMs = entryDateMs + (days * 24L * 60 * 60 * 1000L) 
                                 },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
@@ -4388,7 +5184,7 @@ fun DebtEntryDialog(
                         onClick = {
                             val amt = amountStr.toDoubleOrNull() ?: 0.0
                             if (personName.isNotBlank() && amt > 0.0) {
-                                onSave(personName, amt, notes, if (phoneNumber.isNullOrBlank()) null else phoneNumber, dueDateMs)
+                                onSave(personName, amt, notes, if (phoneNumber.isNullOrBlank()) null else phoneNumber, entryDateMs, dueDateMs)
                             }
                         },
                         colors = ButtonDefaults.buttonColors(
