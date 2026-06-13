@@ -52,11 +52,10 @@ class ExpenseViewModel(
 
     // --- PERSISTED SETTINGS ---
     private val prefs = application.getSharedPreferences("expense_tracker_prefs", android.content.Context.MODE_PRIVATE)
-    val enableCarryForward = MutableStateFlow(prefs.getBoolean("enable_carry_forward", true))
+    val enableCarryForward = MutableStateFlow(true)
 
     fun setCarryForwardEnabled(enabled: Boolean) {
-        enableCarryForward.value = enabled
-        prefs.edit().putBoolean("enable_carry_forward", enabled).apply()
+        enableCarryForward.value = true
     }
 
     val themePreference = MutableStateFlow(prefs.getString("theme_preference", "system") ?: "system")
@@ -64,6 +63,13 @@ class ExpenseViewModel(
     fun setThemePreference(pref: String) {
         themePreference.value = pref
         prefs.edit().putString("theme_preference", pref).apply()
+    }
+
+    val isOnboardingCompleted = MutableStateFlow(prefs.getBoolean("onboarding_completed", false))
+
+    fun setOnboardingCompleted(completed: Boolean) {
+        isOnboardingCompleted.value = completed
+        prefs.edit().putBoolean("onboarding_completed", completed).apply()
     }
 
     // --- FILTERS ---
@@ -76,6 +82,7 @@ class ExpenseViewModel(
 
     // Active screen route
     val currentScreen = MutableStateFlow("dashboard") // "dashboard", "transactions", "analytics", "budgets", "settings", "accounts"
+    val moreSelectedTabIdx = MutableStateFlow(0)
 
     // Custom currencies array
     val availableCurrencies = listOf("USD ($)", "EUR (€)", "GBP (£)", "INR (₹)", "JPY (¥)", "CAD ($)", "AUD ($)", "CNY (¥)")
@@ -143,6 +150,28 @@ class ExpenseViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val creditCards: StateFlow<List<CreditCard>> = _selectedAccountId
+        .flatMapLatest { accountId ->
+            if (accountId != -1) {
+                repository.getCreditCardsForAccount(accountId)
+            } else {
+                flowOf(emptyList())
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val creditCardRepayments: StateFlow<List<CreditCardRepayment>> = _selectedAccountId
+        .flatMapLatest { accountId ->
+            if (accountId != -1) {
+                repository.getAllCreditCardRepayments()
+            } else {
+                flowOf(emptyList())
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val debtStats: StateFlow<DebtStats> = combine(debtEntries, allDebtPayments) { entries, payments ->
         val currentTime = System.currentTimeMillis()
         var lentTotal = 0.0
@@ -159,6 +188,7 @@ class ExpenseViewModel(
 
         entries.forEach { entry ->
             val entryPaymentsObj = paymentsMap[entry.id] ?: emptyList()
+            val totalLentOrBorrowedAdded = entry.amount + entryPaymentsObj.filter { it.isAddition }.sumOf { it.amount }
             val totalPaidForThisEntry = if (entryPaymentsObj.isEmpty()) {
                 if (entry.status.uppercase() == "RECOVERED" || entry.status.uppercase() == "REPAID") {
                     entry.amount
@@ -166,22 +196,22 @@ class ExpenseViewModel(
                     0.0
                 }
             } else {
-                entryPaymentsObj.sumOf { it.amount }
+                entryPaymentsObj.filter { !it.isAddition }.sumOf { it.amount }
             }
 
-            val remainingForEntry = (entry.amount - totalPaidForThisEntry).coerceAtLeast(0.0)
+            val remainingForEntry = (totalLentOrBorrowedAdded - totalPaidForThisEntry).coerceAtLeast(0.0)
             val isOverdue = entry.status.uppercase() == "OVERDUE" || 
                 (entry.status.uppercase() != "RECOVERED" && entry.status.uppercase() != "REPAID" && remainingForEntry > 0.0 && entry.dueDate < currentTime)
             
             if (entry.type == "LENT") {
-                lentTotal += entry.amount
+                lentTotal += totalLentOrBorrowedAdded
                 recoveredTotal += totalPaidForThisEntry
                 outstandingLentTotal += remainingForEntry
                 if (isOverdue) {
                     overdueLentTotal += remainingForEntry
                 }
             } else if (entry.type == "BORROWED") {
-                borrowedTotal += entry.amount
+                borrowedTotal += totalLentOrBorrowedAdded
                 repaidTotal += totalPaidForThisEntry
                 remainingBorrowedTotal += remainingForEntry
                 if (isOverdue) {
@@ -217,17 +247,17 @@ class ExpenseViewModel(
         val totalExpense = txList.filter { it.type == "EXPENSE" }.sumOf { it.amount }
         
         val cashIncome = txList.filter { it.type == "INCOME" && it.paymentMode.equals("Cash", ignoreCase = true) }.sumOf { it.amount }
-        val cashExpense = txList.filter { it.type == "EXPENSE" && it.paymentMode.equals("Cash", ignoreCase = true) }.sumOf { it.amount }
+        val cashExpense = txList.filter { it.type == "EXPENSE" && it.paymentMode.equals("Cash", ignoreCase = true) && !it.paymentMode.equals("Credit Card", ignoreCase = true) && it.creditCardId == null }.sumOf { it.amount }
         val cashBalanceValue = cashIncome - cashExpense
         
-        val bankIncome = txList.filter { it.type == "INCOME" && !it.paymentMode.equals("Cash", ignoreCase = true) }.sumOf { it.amount }
-        val bankExpense = txList.filter { it.type == "EXPENSE" && !it.paymentMode.equals("Cash", ignoreCase = true) }.sumOf { it.amount }
+        val bankIncome = txList.filter { it.type == "INCOME" && !it.paymentMode.equals("Cash", ignoreCase = true) && !it.paymentMode.equals("Credit Card", ignoreCase = true) && it.creditCardId == null }.sumOf { it.amount }
+        val bankExpense = txList.filter { it.type == "EXPENSE" && !it.paymentMode.equals("Cash", ignoreCase = true) && !it.paymentMode.equals("Credit Card", ignoreCase = true) && it.creditCardId == null }.sumOf { it.amount }
         val bankBalanceValue = bankIncome - bankExpense
         
         BalanceStats(
             income = totalIncome,
             expense = totalExpense,
-            netBalance = totalIncome - totalExpense,
+            netBalance = cashBalanceValue + bankBalanceValue,
             cashBalance = cashBalanceValue,
             bankBalance = bankBalanceValue
         )
@@ -430,6 +460,20 @@ class ExpenseViewModel(
         }
     }
 
+    fun verifyCurrentPin(enteredPin: String, expectedPin: String?): Boolean {
+        if (lockoutSecondsRemaining.value > 0) return false
+        if (expectedPin == enteredPin) {
+            pinFailedAttempts.value = 0
+            return true
+        } else {
+            pinFailedAttempts.value += 1
+            if (pinFailedAttempts.value >= 5) {
+                startLockoutTimer()
+            }
+            return false
+        }
+    }
+
     // --- DATABASE MUTATIONS ---
 
     fun addAccount(
@@ -540,7 +584,8 @@ class ExpenseViewModel(
         isRecurring: Boolean,
         recurringInterval: String?,
         paymentMode: String = "Cash",
-        imagePath: String? = null
+        imagePath: String? = null,
+        creditCardId: Int? = null
     ) {
         viewModelScope.launch {
             val activeId = _selectedAccountId.value
@@ -557,7 +602,8 @@ class ExpenseViewModel(
                 isRecurring = isRecurring,
                 recurringInterval = recurringInterval,
                 paymentMode = paymentMode,
-                imagePath = imagePath
+                imagePath = imagePath,
+                creditCardId = creditCardId
             )
             repository.insertTransaction(tx)
 
@@ -638,8 +684,28 @@ class ExpenseViewModel(
         }.sumOf { it.amount }
 
         if (currentSpending > budget.amount) {
+            val title = "Budget Warning"
+            val msg = "${category} budget has reached 100%."
+            NotificationHelper.showNotification(
+                context = getApplication(),
+                id = 2001,
+                title = title,
+                message = msg,
+                targetScreen = "budgets",
+                highPriority = false
+            )
             _alertMessage.emit("⚠️ Budget warning! Total spending on $category is now ${currentSpending}, which exceeds your monthly limit of ${budget.amount}!")
         } else if (currentSpending + addedAmount >= budget.amount * 0.9) {
+            val title = "Budget Warning"
+            val msg = "${category} budget has reached 90%."
+            NotificationHelper.showNotification(
+                context = getApplication(),
+                id = 2002,
+                title = title,
+                message = msg,
+                targetScreen = "budgets",
+                highPriority = false
+            )
             _alertMessage.emit("⚠️ Budget notice! You have used over 90% of your $category budget monthly cap (${currentSpending} / ${budget.amount})!")
         }
     }
@@ -860,8 +926,8 @@ class ExpenseViewModel(
                     }
                     "CSV" -> {
                         val csvContent = BackupManager.exportTransactionsToCsv(txList, accountMap)
-                        val repName = if (scope == "CURRENT") activeAcc.name else "All Accounts Combined"
-                        val file = java.io.File(context.cacheDir, "Financial_Report_${repName.replace(" ", "_")}.csv")
+                        val dateSuffix = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.getDefault()).format(java.util.Date())
+                        val file = java.io.File(context.cacheDir, "FinTrackerPro_Report_$dateSuffix.csv")
                         val fos = java.io.FileOutputStream(file)
                         fos.write(csvContent.toByteArray(Charsets.UTF_8))
                         fos.flush()
@@ -955,7 +1021,8 @@ class ExpenseViewModel(
         recurringInterval: String?,
         paymentMode: String = "Cash",
         imagePath: String? = null,
-        items: List<TransactionItem>
+        items: List<TransactionItem>,
+        creditCardId: Int? = null
     ) {
         viewModelScope.launch {
             val activeId = _selectedAccountId.value
@@ -972,7 +1039,8 @@ class ExpenseViewModel(
                 isRecurring = isRecurring,
                 recurringInterval = recurringInterval,
                 paymentMode = paymentMode,
-                imagePath = imagePath
+                imagePath = imagePath,
+                creditCardId = creditCardId
             )
             val newTxId = repository.insertTransaction(tx)
 
@@ -1007,7 +1075,8 @@ class ExpenseViewModel(
         status: String = "ACTIVE",
         reminderDate: Long? = null,
         reminderNotes: String? = null,
-        repeatReminder: Boolean = false
+        repeatReminder: Boolean = false,
+        paymentMethod: String = "Cash"
     ) {
         viewModelScope.launch {
             val activeId = _selectedAccountId.value
@@ -1027,6 +1096,89 @@ class ExpenseViewModel(
                     repeatReminder = repeatReminder
                 )
                 repository.insertDebtEntry(newEntry)
+
+                // Add standard transaction to deduct (expense for lending) or add (income for borrowing) balance
+                val txType = if (type == "LENT") "EXPENSE" else "INCOME"
+                val txTitle = if (type == "LENT") "Money Lent (to $personName)" else "Money Borrowed (from $personName)"
+                val normalizedPaymentMode = when (paymentMethod) {
+                    "Cash" -> "Cash"
+                    "Bank Account", "Bank / Online" -> "Bank"
+                    "UPI" -> "UPI"
+                    "Card" -> "Card"
+                    else -> "Bank"
+                }
+                val tx = Transaction(
+                    accountId = activeId,
+                    amount = amount,
+                    title = txTitle,
+                    timestamp = entryDate,
+                    remarks = notes.ifBlank { "Initial ledger entry setup" },
+                    type = txType,
+                    category = "Other",
+                    isRecurring = false,
+                    paymentMode = normalizedPaymentMode
+                )
+                repository.insertTransaction(tx)
+            }
+        }
+    }
+
+    fun insertDebtAddition(
+        entry: DebtEntry,
+        amount: Double,
+        paymentMethod: String,
+        entryDate: Long,
+        notes: String = ""
+    ) {
+        viewModelScope.launch {
+            val payment = DebtPayment(
+                debtEntryId = entry.id,
+                amount = amount,
+                timestamp = entryDate,
+                paymentMethod = paymentMethod,
+                notes = notes,
+                isAddition = true
+            )
+            repository.insertDebtPayment(payment)
+
+            // Dynamic transaction to subtract wallet balance (EXPENSE for lent) or addition (INCOME for borrow)
+            val txType = if (entry.type == "LENT") "EXPENSE" else "INCOME"
+            val txTitle = if (entry.type == "LENT") {
+                "Lent More Money (to ${entry.personName})"
+            } else {
+                "Borrowed More Money (from ${entry.personName})"
+            }
+
+            val normalizedPaymentMode = when (paymentMethod) {
+                "Cash" -> "Cash"
+                "Bank Account", "Bank / Online" -> "Bank"
+                "UPI" -> "UPI"
+                "Card" -> "Card"
+                else -> "Bank"
+            }
+
+            val tx = Transaction(
+                accountId = entry.accountId,
+                amount = amount,
+                title = txTitle,
+                timestamp = entryDate,
+                remarks = notes.ifBlank { "Added to ${entry.personName}'s ledger" },
+                type = txType,
+                category = "Other",
+                isRecurring = false,
+                paymentMode = normalizedPaymentMode
+            )
+            repository.insertTransaction(tx)
+
+            // Automatically update status back to ACTIVE if there is an outstanding amount
+            val allPaymentsForDebt = repository.getPaymentsForDebtDirect(entry.id)
+            val totalLentOrBorrowedAdded = entry.amount + allPaymentsForDebt.filter { it.isAddition }.sumOf { it.amount }
+            val totalPaidAll = allPaymentsForDebt.filter { !it.isAddition }.sumOf { it.amount }
+            if (totalLentOrBorrowedAdded > totalPaidAll) {
+                repository.updateDebtEntry(entry.copy(status = "ACTIVE"))
+            } else {
+                val finalStatus = if (entry.type == "LENT") "RECOVERED" else "REPAID"
+                repository.updateDebtEntry(entry.copy(status = finalStatus))
             }
         }
     }
@@ -1063,7 +1215,8 @@ class ExpenseViewModel(
                 amount = amount,
                 timestamp = System.currentTimeMillis(),
                 paymentMethod = paymentMethod,
-                notes = notes
+                notes = notes,
+                isAddition = false
             )
             repository.insertDebtPayment(payment)
 
@@ -1076,7 +1229,7 @@ class ExpenseViewModel(
 
             val normalizedPaymentMode = when (paymentMethod) {
                 "Cash" -> "Cash"
-                "Bank Account" -> "Bank"
+                "Bank Account", "Bank / Online" -> "Bank"
                 "UPI" -> "UPI"
                 "Card" -> "Card"
                 else -> "Bank"
@@ -1097,12 +1250,159 @@ class ExpenseViewModel(
 
             // Auto update status
             val allPaymentsForDebt = repository.getPaymentsForDebtDirect(entry.id)
-            val totalPaidAll = allPaymentsForDebt.sumOf { it.amount }
-            if (totalPaidAll >= entry.amount) {
+            val totalLentOrBorrowedAdded = entry.amount + allPaymentsForDebt.filter { it.isAddition }.sumOf { it.amount }
+            val totalPaidAll = allPaymentsForDebt.filter { !it.isAddition }.sumOf { it.amount }
+            if (totalPaidAll >= totalLentOrBorrowedAdded) {
                 val finalStatus = if (entry.type == "LENT") "RECOVERED" else "REPAID"
                 repository.updateDebtEntry(entry.copy(status = finalStatus))
             } else {
                 repository.updateDebtEntry(entry.copy(status = "ACTIVE"))
+            }
+        }
+    }
+
+    // --- CREDIT CARD VM OPERATIONS ---
+    fun insertCreditCard(
+        cardName: String,
+        cardIssuer: String,
+        creditLimit: Double,
+        billingCycleDate: Int,
+        paymentDueDate: Int,
+        interestRate: Double? = null,
+        colorHex: String = "#FF1A237E"
+    ) {
+        viewModelScope.launch {
+            val activeId = _selectedAccountId.value
+            if (activeId == -1) return@launch
+            val card = CreditCard(
+                accountId = activeId,
+                cardName = cardName,
+                cardIssuer = cardIssuer,
+                creditLimit = creditLimit,
+                billingCycleDate = billingCycleDate,
+                paymentDueDate = paymentDueDate,
+                interestRate = interestRate,
+                colorHex = colorHex
+            )
+            repository.insertCreditCard(card)
+        }
+    }
+
+    fun updateCreditCard(card: CreditCard) {
+        viewModelScope.launch {
+            repository.updateCreditCard(card)
+        }
+    }
+
+    fun deleteCreditCard(card: CreditCard) {
+        viewModelScope.launch {
+            repository.deleteCreditCard(card)
+            // also clean up any repayments associated with it
+            repository.deleteRepaymentsByCardId(card.id)
+        }
+    }
+
+    fun insertCreditCardRepayment(
+        card: CreditCard,
+        amount: Double,
+        paymentSource: String, // "Cash" or "Bank"
+        notes: String,
+        timestamp: Long = System.currentTimeMillis()
+    ) {
+        viewModelScope.launch {
+            // 1. Save repayment in credit_card_repayments
+            val repayment = CreditCardRepayment(
+                creditCardId = card.id,
+                amount = amount,
+                timestamp = timestamp,
+                paymentSource = paymentSource,
+                notes = notes
+            )
+            repository.insertCreditCardRepayment(repayment)
+
+            // 2. Synchronize with Transaction list to automatically reduce wallet balances
+            val systemNotes = if (notes.isNotBlank()) notes else "Repayment for ${card.cardName}"
+            val tx = Transaction(
+                accountId = card.accountId,
+                amount = amount,
+                title = "Credit Card Pay: ${card.cardName}",
+                timestamp = timestamp,
+                remarks = systemNotes,
+                type = "EXPENSE",
+                category = "Credit Card",
+                paymentMode = paymentSource // "Cash" or "Bank"
+            )
+            repository.insertTransaction(tx)
+        }
+    }
+
+    fun checkAndTriggerDueReminders(context: Context) {
+        viewModelScope.launch {
+            val accountId = _selectedAccountId.value
+            if (accountId == -1) return@launch
+
+            try {
+                // 1. Credit Card reminders check
+                val cards = repository.getCreditCardsForAccount(accountId).first()
+                val txs = repository.getTransactionsForAccount(accountId).first()
+                val repaymentsAll = repository.getAllCreditCardRepayments().first()
+
+                val calendar = Calendar.getInstance()
+                val currentDay = calendar.get(Calendar.DAY_OF_MONTH)
+
+                cards.forEach { card ->
+                    val repayments = repaymentsAll.filter { it.creditCardId == card.id }
+                    val cardSpends = txs.filter { it.type == "EXPENSE" && it.creditCardId == card.id }.sumOf { it.amount }
+                    val cardPayments = repayments.sumOf { it.amount }
+                    val outstanding = (cardSpends - cardPayments).coerceAtLeast(0.0)
+
+                    if (outstanding > 0.0) {
+                        val dueDay = card.paymentDueDate
+                        val daysLeft = if (dueDay >= currentDay) {
+                            dueDay - currentDay
+                        } else {
+                            val maxDays = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+                            (maxDays - currentDay) + dueDay
+                        }
+
+                        // Criteria: payment due in exactly 3 days
+                        if (daysLeft == 3) {
+                            NotificationHelper.showNotification(
+                                context = context,
+                                id = 3000 + card.id,
+                                title = "Credit Card Due Soon",
+                                message = "${card.cardName} payment due in 3 days.",
+                                targetScreen = "credit_cards",
+                                highPriority = true
+                            )
+                        }
+                    }
+                }
+
+                // 2. Khata (DebtEntry) reminders check
+                val debts = repository.getDebtEntriesForAccount(accountId).first()
+                val oneDayMs = 24 * 60 * 60 * 1000L
+                val nowMs = System.currentTimeMillis()
+
+                debts.forEach { entry ->
+                    if (entry.status.uppercase() != "RECOVERED" && entry.status.uppercase() != "REPAID") {
+                        val timeDiff = entry.dueDate - nowMs
+                        // Criteria: due tomorrow (between 12 and 36 hours remaining)
+                        val isDueTomorrow = timeDiff in (12 * 60 * 60 * 1000L)..(36 * 60 * 60 * 1000L)
+                        if (isDueTomorrow) {
+                            NotificationHelper.showNotification(
+                                context = context,
+                                id = 4000 + entry.id,
+                                title = "Payment Reminder",
+                                message = "${entry.personName}'s repayment is due tomorrow.",
+                                targetScreen = "debts",
+                                highPriority = true
+                            )
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }

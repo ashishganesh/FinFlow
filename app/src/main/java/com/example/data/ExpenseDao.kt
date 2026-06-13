@@ -141,4 +141,45 @@ interface ExpenseDao {
 
     @Query("SELECT * FROM debt_payments ORDER BY timestamp DESC")
     fun getAllPayments(): Flow<List<DebtPayment>>
+
+    // --- CREDIT CARDS ---
+    @Query("SELECT * FROM credit_cards ORDER BY cardName ASC")
+    fun getAllCreditCards(): Flow<List<CreditCard>>
+
+    @Query("SELECT * FROM credit_cards WHERE accountId = :accountId ORDER BY cardName ASC")
+    fun getCreditCardsForAccount(accountId: Int): Flow<List<CreditCard>>
+
+    @Query("SELECT * FROM credit_cards WHERE id = :id")
+    suspend fun getCreditCardById(id: Int): CreditCard?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCreditCard(card: CreditCard): Long
+
+    @Update
+    suspend fun updateCreditCard(card: CreditCard)
+
+    @Delete
+    suspend fun deleteCreditCard(card: CreditCard)
+
+    @Query("DELETE FROM credit_cards WHERE accountId = :accountId")
+    suspend fun deleteCreditCardsByAccount(accountId: Int)
+
+    // --- CREDIT CARD REPAYMENTS ---
+    @Query("SELECT * FROM credit_card_repayments WHERE creditCardId = :creditCardId ORDER BY timestamp DESC")
+    fun getRepaymentsForCard(creditCardId: Int): Flow<List<CreditCardRepayment>>
+
+    @Query("SELECT * FROM credit_card_repayments WHERE creditCardId = :creditCardId")
+    suspend fun getRepaymentsForCardDirect(creditCardId: Int): List<CreditCardRepayment>
+
+    @Query("SELECT * FROM credit_card_repayments ORDER BY timestamp DESC")
+    fun getAllCreditCardRepayments(): Flow<List<CreditCardRepayment>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCreditCardRepayment(repayment: CreditCardRepayment): Long
+
+    @Delete
+    suspend fun deleteCreditCardRepayment(repayment: CreditCardRepayment)
+
+    @Query("DELETE FROM credit_card_repayments WHERE creditCardId = :creditCardId")
+    suspend fun deleteRepaymentsByCardId(creditCardId: Int)
 }

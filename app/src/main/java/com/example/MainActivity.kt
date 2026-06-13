@@ -41,6 +41,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.collectLatest
 
 class MainActivity : ComponentActivity() {
+    private var expenseViewModel: ExpenseViewModel? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -49,11 +51,57 @@ class MainActivity : ComponentActivity() {
         val database = AppDatabase.getDatabase(applicationContext)
         val repository = ExpenseRepository(database.expenseDao())
 
+        // Initialize standard notifications channel
+        NotificationHelper.init(applicationContext)
+
+        // Request standard notification permission on Android 13+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            val permission = android.Manifest.permission.POST_NOTIFICATIONS
+            if (checkSelfPermission(permission) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(permission), 101)
+            }
+        }
+
         setContent {
             val app = this@MainActivity.application
             val model: ExpenseViewModel = viewModel(
                 factory = ExpenseViewModelFactory(app, repository)
             )
+            expenseViewModel = model
+
+            // Route dynamically if app opened from standard system notification tap
+            LaunchedEffect(Unit) {
+                intent?.getStringExtra("target_screen")?.let { targetScreen ->
+                    if (targetScreen.isNotEmpty()) {
+                        when (targetScreen) {
+                            "budgets" -> {
+                                model.currentScreen.value = "budgets"
+                                model.moreSelectedTabIdx.value = 0
+                            }
+                            "savings" -> {
+                                model.currentScreen.value = "budgets"
+                                model.moreSelectedTabIdx.value = 1
+                            }
+                            "debts" -> {
+                                model.currentScreen.value = "budgets"
+                                model.moreSelectedTabIdx.value = 3
+                            }
+                            else -> {
+                                model.currentScreen.value = targetScreen
+                            }
+                        }
+                    }
+                }
+            }
+
+            val authTargetAcc by model.authTargetAccount.collectAsStateWithLifecycle()
+            LaunchedEffect(authTargetAcc) {
+                if (authTargetAcc != null && authTargetAcc?.pin != null) {
+                    window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                } else {
+                    window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                }
+            }
 
             val themePref by model.themePreference.collectAsStateWithLifecycle()
             val systemIsDark = isSystemInDarkTheme()
@@ -80,6 +128,38 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intent.getStringExtra("target_screen")?.let { targetScreen ->
+            if (targetScreen.isNotEmpty()) {
+                val model = expenseViewModel ?: return@let
+                when (targetScreen) {
+                    "budgets" -> {
+                        model.currentScreen.value = "budgets"
+                        model.moreSelectedTabIdx.value = 0
+                    }
+                    "savings" -> {
+                        model.currentScreen.value = "budgets"
+                        model.moreSelectedTabIdx.value = 1
+                    }
+                    "debts" -> {
+                        model.currentScreen.value = "budgets"
+                        model.moreSelectedTabIdx.value = 3
+                    }
+                    else -> {
+                        model.currentScreen.value = targetScreen
+                    }
+                }
+            }
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        expenseViewModel?.lockAccountManually()
+    }
 }
 
 data class ScreenItem(
@@ -98,6 +178,11 @@ fun AppNavigationShell(
     val context = LocalContext.current
     val currentRoute = viewModel.currentScreen.collectAsStateWithLifecycle().value
     val activeAcc = viewModel.activeAccount.collectAsStateWithLifecycle().value
+    LaunchedEffect(activeAcc) {
+        if (activeAcc != null) {
+            viewModel.checkAndTriggerDueReminders(context)
+        }
+    }
     val accountsList = viewModel.accounts.collectAsStateWithLifecycle().value
     val authTargetAcc = viewModel.authTargetAccount.collectAsStateWithLifecycle().value
     val lockoutSecondsRemaining = viewModel.lockoutSecondsRemaining.collectAsStateWithLifecycle().value
@@ -109,6 +194,9 @@ fun AppNavigationShell(
     var selectedTxForEdit by remember { mutableStateOf<Transaction?>(null) }
     var selectedTxItems by remember { mutableStateOf<List<TransactionItem>>(emptyList()) }
     var showAddBudgetDialog by remember { mutableStateOf(false) }
+    var showDebtTypeForAdd by remember { mutableStateOf<String?>(null) }
+    var showAddSavingsDepositDialog by remember { mutableStateOf(false) }
+    var initialPaymentMode by remember { mutableStateOf("") }
 
     LaunchedEffect(selectedTxForEdit) {
         val tx = selectedTxForEdit
@@ -140,29 +228,34 @@ fun AppNavigationShell(
         )
     }
 
-    if (accountsList.isEmpty()) {
-        var showFirstProfileSetup by remember { mutableStateOf(false) }
+    val isOnboardingCompleted by viewModel.isOnboardingCompleted.collectAsStateWithLifecycle()
+    var showFirstProfileSetup by remember { mutableStateOf(false) }
 
-        if (showFirstProfileSetup) {
-            ProfileConfigDialog(
-                titleLabel = "Instantiate Profile Space",
-                onDismiss = { showFirstProfileSetup = false },
-                onSubmit = { name, currency, pin, colorVal, avatar, theme, cash, bank ->
-                    viewModel.addAccount(
-                        name = name,
-                        pin = pin,
-                        color = colorVal,
-                        currency = currency,
-                        avatar = avatar,
-                        themePreference = theme,
-                        openingCashBalance = cash,
-                        openingBankBalance = bank
-                    )
-                    showFirstProfileSetup = false
-                    Toast.makeText(context, "Welcome to $name Workspace!", Toast.LENGTH_SHORT).show()
-                }
-            )
-        }
+    if (showFirstProfileSetup) {
+        ProfileConfigDialog(
+            titleLabel = "Instantiate Profile Space",
+            onDismiss = { showFirstProfileSetup = false },
+            onSubmit = { name, currency, pin, colorVal, avatar, theme, cash, bank ->
+                viewModel.addAccount(
+                    name = name,
+                    pin = pin,
+                    color = colorVal,
+                    currency = currency,
+                    avatar = avatar,
+                    themePreference = theme,
+                    openingCashBalance = cash,
+                    openingBankBalance = bank
+                )
+                showFirstProfileSetup = false
+                viewModel.setOnboardingCompleted(true)
+                Toast.makeText(context, "Welcome to $name Workspace!", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    if (!isOnboardingCompleted) {
+        var activeSlide by remember { mutableStateOf(0) }
+        val slideCount = 4
 
         Box(
             modifier = Modifier
@@ -173,65 +266,267 @@ fun AppNavigationShell(
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.widthIn(max = 400.dp)
+                verticalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = 450.dp)
+                    .padding(vertical = 16.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-                    contentAlignment = Alignment.Center
+                // Header / Branding info
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(top = 16.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.AccountBalance,
-                        contentDescription = "Wallet Icon",
+                        contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text(
+                        text = "FinTracker Pro",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
 
-                Text(
-                    text = "Welcome to FinTrack Pro",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    textAlign = TextAlign.Center
-                )
+                // Dynamic Animated slide content
+                AnimatedContent(
+                    targetState = activeSlide,
+                    transitionSpec = {
+                        slideInHorizontally { width -> if (targetState > initialState) width else -width } + fadeIn() togetherWith
+                        slideOutHorizontally { width -> if (targetState > initialState) -width else width } + fadeOut()
+                    },
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    label = "slide_transition"
+                ) { slide ->
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)
+                    ) {
+                        val icon: ImageVector
+                        val title: String
+                        val desc: String
+                        val tint: Color
 
-                Text(
-                    text = "Take complete control of your finances. This application is 100% offline-first and private—your transaction itemizations, budgets, and savings goals are stored safely and solely on your device.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 22.sp
-                )
+                        when (slide) {
+                            0 -> {
+                                icon = Icons.Default.VerifiedUser
+                                title = "100% Offline & Private"
+                                desc = "Your financial logs, itemized receipts, and PIN passcodes are stored safely and solely on your physical device.\nNo servers, no tracking, complete digital privacy."
+                                tint = MaterialTheme.colorScheme.primary
+                            }
+                            1 -> {
+                                icon = Icons.Default.TrendingUp
+                                title = "Proactive Budget Caps"
+                                desc = "Set monthly spending limits per category. Visual 90% and 100% notification alert indicators with live system tray integration keep you accountable."
+                                tint = MaterialTheme.colorScheme.secondary
+                            }
+                            2 -> {
+                                icon = Icons.Default.People
+                                title = "Khata Digital Ledger"
+                                desc = "Keep immaculate records of money lent to or borrowed from colleagues. Automated proximity system notifications remind you of due dates."
+                                tint = MaterialTheme.colorScheme.tertiary
+                            }
+                            else -> {
+                                icon = Icons.Default.Security
+                                title = "Secure Profile Spaces"
+                                desc = "Instantiate different workspaces for business, household, or personal tracking. Secure individual environments with a 4-digit PIN lock screen."
+                                tint = MaterialTheme.colorScheme.primary
+                            }
+                        }
 
-                Text(
-                    text = "To get started, please set up a profile workspace. You can choose a custom name, home currency, theme color, and securely lock it with an optional PIN access code.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                    textAlign = TextAlign.Center,
-                    lineHeight = 18.sp
-                )
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp)
+                                .background(tint.copy(alpha = 0.12f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = title,
+                                tint = tint,
+                                modifier = Modifier.size(48.dp)
+                            )
+                        }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(28.dp))
 
-                Button(
-                    onClick = { showFirstProfileSetup = true },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(12.dp)
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(
+                            text = desc,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 22.sp
+                        )
+                    }
+                }
+
+                // Indicators and bottom operations panel
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.Add, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Instantiate Profile Space",
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold
-                    )
+                    // Bullets indicator
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        repeat(slideCount) { idx ->
+                            Box(
+                                modifier = Modifier
+                                    .size(if (activeSlide == idx) 12.dp else 8.dp)
+                                    .background(
+                                        if (activeSlide == idx) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                        CircleShape
+                                    )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Buttons Layout
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        if (activeSlide > 0) {
+                            OutlinedButton(
+                                onClick = { activeSlide-- },
+                                modifier = Modifier.weight(1f).height(48.dp),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Back")
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                if (activeSlide < slideCount - 1) {
+                                    activeSlide++
+                                } else {
+                                    showFirstProfileSetup = true
+                                }
+                            },
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (activeSlide == slideCount - 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = if (activeSlide == slideCount - 1) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        ) {
+                            if (activeSlide == slideCount - 1) {
+                                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Instantiate Workspace", fontWeight = FontWeight.Bold)
+                            } else {
+                                Text("Next Feature", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
                 }
             }
         }
         return
+    }
+
+    // Dynamic initial loading check to prevent screen flashes
+    var hasExpiredLoadingGracePeriod by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(180)
+        hasExpiredLoadingGracePeriod = true
+    }
+
+    if (accountsList.isEmpty()) {
+        if (!hasExpiredLoadingGracePeriod) {
+            // Elegant M3 loading container on startup
+            Box(
+                modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.primary,
+                    strokeWidth = 3.dp
+                )
+            }
+            return
+        } else {
+            // Fallback workspace screen if no accounts exist after loading grace period
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.widthIn(max = 400.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AccountBalance,
+                            contentDescription = "Wallet Icon",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+
+                    Text(
+                        text = "Initialize Workspace",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Text(
+                        text = "To start tracking, please configure a financial workspace profile. All profiles run as distinct and private local sandboxes.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 22.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Button(
+                        onClick = { showFirstProfileSetup = true },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.Add, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Instantiate Profile Space",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+            return
+        }
     }
 
     Scaffold(
@@ -347,12 +642,12 @@ fun AppNavigationShell(
                 windowInsets = WindowInsets.navigationBars,
                 containerColor = MaterialTheme.colorScheme.background
             ) {
-                // Customized bottom navigation as requested (Dashboard, Transactions, Budgets, Recurring, More)
+                // Customized bottom navigation as requested (Dashboard, Ledger, Finance, Cards, More)
                 val screens = listOf(
                     ScreenItem("Dashboard", "dashboard", Icons.Default.Dashboard),
                     ScreenItem("Ledger", "transactions", Icons.Default.ReceiptLong),
-                    ScreenItem("Budgets", "budgets", Icons.Default.TrendingUp),
-                    ScreenItem("Recurring", "recurring", Icons.Default.Autorenew),
+                    ScreenItem("Finance", "budgets", Icons.Default.TrendingUp),
+                    ScreenItem("Cards", "credit_cards", Icons.Default.Wallet),
                     ScreenItem("More", "more", Icons.Default.MoreHoriz)
                 )
 
@@ -393,7 +688,9 @@ fun AppNavigationShell(
                             showAddDialog = true
                         },
                         onEditTransactionClick = { tx -> selectedTxForEdit = tx },
-                        onAddBudgetClick = { showAddBudgetDialog = true }
+                        onAddBudgetClick = { showAddBudgetDialog = true },
+                        onAddLentClick = { showDebtTypeForAdd = "LENT" },
+                        onAddBorrowedClick = { showDebtTypeForAdd = "BORROWED" }
                     )
                     "transactions" -> TransactionsScreen(
                         viewModel = viewModel,
@@ -404,15 +701,140 @@ fun AppNavigationShell(
                         }
                     )
                     "budgets" -> BudgetsScreen(viewModel = viewModel)
-                    "recurring" -> RecurringScreen(
+                    "credit_cards" -> CreditCardsScreen(viewModel = viewModel)
+                    "more" -> MoreHubScreen(
                         viewModel = viewModel,
-                        onEditTransactionClick = { tx -> selectedTxForEdit = tx },
                         onAddTransactionClick = {
                             initialAddType = "EXPENSE"
+                            initialPaymentMode = ""
                             showAddDialog = true
-                        }
+                        },
+                        onEditTransactionClick = { tx -> selectedTxForEdit = tx }
                     )
-                    "more" -> MoreHubScreen(viewModel = viewModel)
+                }
+            }
+
+            var isFabExpanded by remember { mutableStateOf(false) }
+
+            // Global Floating Action Button Overlay
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = 16.dp, end = 16.dp)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Expanded actions list
+                    AnimatedVisibility(
+                        visible = isFabExpanded,
+                        enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                        exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        ) {
+                            // 1. Add Expense
+                            ExtendedActionButton(
+                                text = "Add Expense",
+                                icon = Icons.Default.AddShoppingCart,
+                                color = Color(0xFFF87171),
+                                onClick = {
+                                    initialAddType = "EXPENSE"
+                                    initialPaymentMode = ""
+                                    showAddDialog = true
+                                    isFabExpanded = false
+                                }
+                            )
+
+                            // 2. Add Income
+                            ExtendedActionButton(
+                                text = "Add Income",
+                                icon = Icons.Default.Payments,
+                                color = Color(0xFF34D399),
+                                onClick = {
+                                    initialAddType = "INCOME"
+                                    initialPaymentMode = ""
+                                    showAddDialog = true
+                                    isFabExpanded = false
+                                }
+                            )
+
+                            // 3. Add Lent
+                            ExtendedActionButton(
+                                text = "Add Lent",
+                                icon = Icons.Default.ArrowOutward,
+                                color = Color(0xFF60A5FA),
+                                onClick = {
+                                    showDebtTypeForAdd = "LENT"
+                                    isFabExpanded = false
+                                }
+                            )
+
+                            // 4. Add Borrowed
+                            ExtendedActionButton(
+                                text = "Add Borrowed",
+                                icon = Icons.Default.ArrowDownward,
+                                color = Color(0xFFF472B6),
+                                onClick = {
+                                    showDebtTypeForAdd = "BORROWED"
+                                    isFabExpanded = false
+                                }
+                            )
+
+                            // 5. Add Savings Deposit
+                            ExtendedActionButton(
+                                text = "Add Savings Deposit",
+                                icon = Icons.Default.Savings,
+                                color = Color(0xFFFBBF24),
+                                onClick = {
+                                    showAddSavingsDepositDialog = true
+                                    isFabExpanded = false
+                                }
+                            )
+
+                            // 6. Add Credit Card Expense
+                            ExtendedActionButton(
+                                text = "Add Credit Card Expense",
+                                icon = Icons.Default.CreditCard,
+                                color = Color(0xFFA78BFA),
+                                onClick = {
+                                    initialAddType = "EXPENSE"
+                                    initialPaymentMode = "Credit Card"
+                                    showAddDialog = true
+                                    isFabExpanded = false
+                                }
+                            )
+                        }
+                    }
+
+                    // Main (+) button
+                    LargeFloatingActionButton(
+                        onClick = { isFabExpanded = !isFabExpanded },
+                        shape = RoundedCornerShape(20.dp),
+                        containerColor = Color.Transparent,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier
+                            .size(64.dp)
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(
+                                        MaterialTheme.colorScheme.primary,
+                                        MaterialTheme.colorScheme.secondary
+                                    )
+                                ),
+                                RoundedCornerShape(20.dp)
+                            )
+                    ) {
+                        Icon(
+                            imageVector = if (isFabExpanded) Icons.Default.Close else Icons.Default.Add,
+                            contentDescription = "Expand action menu",
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
                 }
             }
 
@@ -434,29 +856,153 @@ fun AppNavigationShell(
             if (showAddDialog) {
                 AddEditTransactionDialog(
                     initialType = initialAddType,
+                    initialPaymentMode = initialPaymentMode,
                     categories = availableCats,
                     currencySymbol = activeAcc?.currency ?: "$",
                     accounts = viewModel.accounts.collectAsStateWithLifecycle().value,
                     activeAccountId = viewModel.selectedAccountId.collectAsStateWithLifecycle().value,
-                    onDismiss = { showAddDialog = false },
-                    onSubmit = { amount, title, category, type, remarks, timestamp, isRec, recInterval, payMode, imgPath, destId, items ->
+                    creditCards = viewModel.creditCards.collectAsStateWithLifecycle().value,
+                    onDismiss = { 
+                        showAddDialog = false 
+                        initialPaymentMode = ""
+                    },
+                    onSubmit = { amount, title, category, type, remarks, timestamp, isRec, recInterval, payMode, imgPath, destId, items, ccId ->
                         if (type == "TRANSFER" && destId != null) {
                             viewModel.transferBalance(destId, amount, title, remarks, timestamp, payMode)
                         } else {
                             if (items.isNotEmpty()) {
                                 viewModel.insertTransactionWithItems(
-                                    amount, title, category, type, remarks, timestamp, isRec, recInterval, payMode, imgPath, items
+                                    amount, title, category, type, remarks, timestamp, isRec, recInterval, payMode, imgPath, items, ccId
                                 )
                             } else {
                                 viewModel.insertTransaction(
-                                    amount, title, category, type, remarks, timestamp, isRec, recInterval, payMode, imgPath
+                                    amount, title, category, type, remarks, timestamp, isRec, recInterval, payMode, imgPath, ccId
                                 )
                             }
                         }
                         showAddDialog = false
+                        initialPaymentMode = ""
                         Toast.makeText(context, "Transaction successfully logged!", Toast.LENGTH_SHORT).show()
                     }
                 )
+            }
+
+            // Overlay form dialogue for ADDING/EDITING debt entries from FAB/Dashboard
+            if (showDebtTypeForAdd != null) {
+                DebtEntryDialog(
+                    type = showDebtTypeForAdd!!,
+                    entry = null,
+                    onDismiss = { showDebtTypeForAdd = null },
+                    onSave = { name, amount, notes, phone, entryDate, dueDate, paymentMethod ->
+                        viewModel.insertDebtEntry(
+                            type = showDebtTypeForAdd!!,
+                            personName = name,
+                            amount = amount,
+                            entryDate = entryDate,
+                            dueDate = dueDate,
+                            notes = notes,
+                            phoneNumber = phone,
+                            paymentMethod = paymentMethod
+                        )
+                        showDebtTypeForAdd = null
+                        Toast.makeText(context, "Debt logged successfully!", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+
+            // Overlay form dialogue for ADDING savings deposit from FAB
+            if (showAddSavingsDepositDialog) {
+                val savingsGoals = viewModel.savingsGoals.collectAsStateWithLifecycle().value
+                if (savingsGoals.isEmpty()) {
+                    AlertDialog(
+                        onDismissRequest = { showAddSavingsDepositDialog = false },
+                        title = { Text("No Savings Goals") },
+                        text = { Text("You must establish a savings goal first in the Budgets section under the Savings tab!") },
+                        confirmButton = {
+                            Button(onClick = { showAddSavingsDepositDialog = false }) {
+                                Text("OK")
+                            }
+                        }
+                    )
+                } else {
+                    var selectedGoalIdx by remember { mutableStateOf(0) }
+                    var depositAmountStr by remember { mutableStateOf("") }
+                    var depositNote by remember { mutableStateOf("FAB Deposit") }
+                    var expandGoalDropdown by remember { mutableStateOf(false) }
+
+                    AlertDialog(
+                        onDismissRequest = { showAddSavingsDepositDialog = false },
+                        title = { Text("Add Savings Deposit") },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Box(modifier = Modifier.fillMaxWidth()) {
+                                    OutlinedButton(
+                                        onClick = { expandGoalDropdown = true },
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text("Goal: " + (savingsGoals.getOrNull(selectedGoalIdx)?.name ?: "Select"))
+                                            Icon(Icons.Default.ArrowDropDown, null)
+                                        }
+                                    }
+                                    DropdownMenu(
+                                        expanded = expandGoalDropdown,
+                                        onDismissRequest = { expandGoalDropdown = false }
+                                    ) {
+                                        savingsGoals.forEachIndexed { idx, goal ->
+                                            DropdownMenuItem(
+                                                text = { Text(goal.name) },
+                                                onClick = {
+                                                    selectedGoalIdx = idx
+                                                    expandGoalDropdown = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+
+                                OutlinedTextField(
+                                    value = depositAmountStr,
+                                    onValueChange = { depositAmountStr = it },
+                                    label = { Text("Deposit Amount (₹)") },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+
+                                OutlinedTextField(
+                                    value = depositNote,
+                                    onValueChange = { depositNote = it },
+                                    label = { Text("Note") },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    val amt = depositAmountStr.toDoubleOrNull() ?: 0.0
+                                    val goal = savingsGoals.getOrNull(selectedGoalIdx)
+                                    if (amt > 0 && goal != null) {
+                                        viewModel.addSavingsGoalTransaction(goal, amt, depositNote)
+                                        showAddSavingsDepositDialog = false
+                                        Toast.makeText(context, "Deposited ₹${amt} successfully!", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                enabled = depositAmountStr.toDoubleOrNull() != null && (depositAmountStr.toDoubleOrNull() ?: 0.0) > 0
+                            ) {
+                                Text("Deposit")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showAddSavingsDepositDialog = false }) {
+                                Text("Cancel")
+                            }
+                        }
+                    )
+                }
             }
 
             // Overlay dialog for ADDING budget limits directly from FAB
@@ -564,8 +1110,9 @@ fun AppNavigationShell(
                         currencySymbol = activeAcc?.currency ?: "$",
                         accounts = viewModel.accounts.collectAsStateWithLifecycle().value,
                         activeAccountId = viewModel.selectedAccountId.collectAsStateWithLifecycle().value,
+                        creditCards = viewModel.creditCards.collectAsStateWithLifecycle().value,
                         onDismiss = { selectedTxForEdit = null },
-                        onSubmit = { amount, title, category, type, remarks, timestamp, isRec, recInterval, payMode, imgPath, destId, items ->
+                        onSubmit = { amount, title, category, type, remarks, timestamp, isRec, recInterval, payMode, imgPath, destId, items, ccId ->
                             val original = selectedTxForEdit!!
                             val updatedTx = original.copy(
                                 amount = amount,
@@ -577,7 +1124,8 @@ fun AppNavigationShell(
                                 isRecurring = isRec,
                                 recurringInterval = recInterval,
                                 paymentMode = payMode,
-                                imagePath = imgPath
+                                imagePath = imgPath,
+                                creditCardId = ccId
                             )
                             if (items.isNotEmpty() || selectedTxItems.isNotEmpty()) {
                                 viewModel.updateTransactionWithItems(updatedTx, items)

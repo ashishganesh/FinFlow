@@ -34,16 +34,20 @@ import androidx.compose.foundation.horizontalScroll
 import java.text.SimpleDateFormat
 import java.util.*
 
+import com.example.data.CreditCard
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditTransactionDialog(
     transaction: Transaction? = null,
     initialItems: List<TransactionItem> = emptyList(),
     initialType: String = "EXPENSE",
+    initialPaymentMode: String = "",
     categories: List<String>,
     currencySymbol: String = "$",
     accounts: List<Account> = emptyList(),
     activeAccountId: Int = -1,
+    creditCards: List<CreditCard> = emptyList(),
     onDismiss: () -> Unit,
     onSubmit: (
         amount: Double,
@@ -57,7 +61,8 @@ fun AddEditTransactionDialog(
         paymentMode: String,
         imagePath: String?,
         transferDestAccountId: Int?,
-        items: List<TransactionItem>
+        items: List<TransactionItem>,
+        creditCardId: Int?
     ) -> Unit
 ) {
     val context = LocalContext.current
@@ -86,8 +91,28 @@ fun AddEditTransactionDialog(
     var isRecurring by remember { mutableStateOf(transaction?.isRecurring ?: false) }
     var recurringInterval by remember { mutableStateOf(transaction?.recurringInterval ?: "Monthly") }
     
-    // Payment Mode: "Cash", "UPI", "Bank", "Card"
-    var paymentMode by remember { mutableStateOf(transaction?.paymentMode ?: "Cash") }
+    // Payment Mode: "Cash", "Bank", "Credit Card"
+    var paymentMode by remember {
+        mutableStateOf(
+            if (transaction != null) {
+                if (transaction.creditCardId != null) {
+                    "Credit Card"
+                } else if (transaction.paymentMode == "UPI" || transaction.paymentMode == "Card" || transaction.paymentMode == "Bank") {
+                    "Bank"
+                } else {
+                    transaction.paymentMode ?: "Cash"
+                }
+            } else if (initialPaymentMode.isNotBlank()) {
+                initialPaymentMode
+            } else {
+                "Cash"
+            }
+        )
+    }
+
+    var selectedCreditCardId by remember(transaction, creditCards) {
+        mutableStateOf(transaction?.creditCardId ?: creditCards.firstOrNull()?.id)
+    }
     
     // Simulated receipt image path/existence
     var imagePath by remember { mutableStateOf(transaction?.imagePath) }
@@ -605,7 +630,7 @@ fun AddEditTransactionDialog(
                 // Payment Mode Selection segment
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "Payment Mode",
+                        "Payment Source",
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -614,7 +639,13 @@ fun AddEditTransactionDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        listOf("Cash", "UPI", "Bank", "Card").forEach { mode ->
+                        val availableModes = if (transactionType == "EXPENSE") {
+                            listOf("Cash", "Bank", "Credit Card")
+                        } else {
+                            listOf("Cash", "Bank")
+                        }
+                        
+                        availableModes.forEach { mode ->
                             val isSelected = paymentMode == mode
                             FilterChip(
                                 selected = isSelected,
@@ -622,6 +653,39 @@ fun AddEditTransactionDialog(
                                 label = { Text(mode, style = MaterialTheme.typography.labelSmall) },
                                 modifier = Modifier.weight(1f)
                             )
+                        }
+                    }
+
+                    if (paymentMode == "Credit Card") {
+                        if (creditCards.isEmpty()) {
+                            Text(
+                                "⚠️ No Credit Cards. Please create Credit Cards in the specialized module first.",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.labelMedium,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    "Assign to Card:",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    creditCards.forEach { card ->
+                                        val isSelected = selectedCreditCardId == card.id
+                                        FilterChip(
+                                            selected = isSelected,
+                                            onClick = { selectedCreditCardId = card.id },
+                                            label = { Text("${card.cardIssuer} - ${card.cardName}", style = MaterialTheme.typography.labelSmall) }
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -886,7 +950,8 @@ fun AddEditTransactionDialog(
                                 paymentMode,
                                 imagePath,
                                 if (transactionType == "TRANSFER") selectedDestAccountId else null,
-                                finalItems
+                                finalItems,
+                                if (paymentMode == "Credit Card") selectedCreditCardId else null
                             )
                         },
                         enabled = submitEnabled

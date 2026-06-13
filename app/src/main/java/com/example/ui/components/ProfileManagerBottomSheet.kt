@@ -69,6 +69,8 @@ fun ProfileManagerBottomSheet(
     var showAddDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showDeleteSecurityVerify by remember { mutableStateOf(false) }
+    val lockoutSecondsRemaining by viewModel.lockoutSecondsRemaining.collectAsState()
 
     // Dialog layout
     Dialog(onDismissRequest = onDismiss) {
@@ -343,7 +345,13 @@ fun ProfileManagerBottomSheet(
                         // DELETE PROFILE BUTTON (except default/only remaining profile)
                         if (accountsList.size > 1 && activeAccount != null) {
                             Button(
-                                onClick = { showDeleteConfirm = true },
+                                onClick = {
+                                    if (activeAccount.pin != null) {
+                                        showDeleteSecurityVerify = true
+                                    } else {
+                                        showDeleteConfirm = true
+                                    }
+                                },
                                 modifier = Modifier.weight(1f),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.errorContainer,
@@ -361,6 +369,24 @@ fun ProfileManagerBottomSheet(
                 }
             }
         }
+    }
+
+    if (showDeleteSecurityVerify && activeAccount != null) {
+        SecurityActionDialog(
+            targetAccount = activeAccount,
+            lockoutSecondsRemaining = lockoutSecondsRemaining,
+            mode = SecurityActionMode.VERIFY_DELETE,
+            onVerifySuccess = {
+                showDeleteSecurityVerify = false
+                showDeleteConfirm = true
+            },
+            onVerifyFailed = {
+                viewModel.verifyCurrentPin("", activeAccount.pin)
+            },
+            onCancel = {
+                showDeleteSecurityVerify = false
+            }
+        )
     }
 
     // --- DIALOG: DELETE CONFIRMER ---

@@ -29,7 +29,8 @@ data class Transaction(
     val isRecurring: Boolean = false,
     val recurringInterval: String? = null, // "Daily", "Weekly", "Monthly", or null
     val paymentMode: String = "Cash", // "Cash", "UPI", "Bank", "Card"
-    val imagePath: String? = null // Optional receipt image reference
+    val imagePath: String? = null, // Optional receipt image reference
+    val creditCardId: Int? = null
 )
 
 @Entity(tableName = "budgets")
@@ -96,6 +97,31 @@ data class DebtPayment(
     val amount: Double,
     val timestamp: Long,
     val paymentMethod: String, // "Cash", "Bank Account", "UPI", "Card"
+    val notes: String = "",
+    val isAddition: Boolean = false
+)
+
+@Entity(tableName = "credit_cards")
+data class CreditCard(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val accountId: Int,
+    val cardName: String,
+    val cardIssuer: String, // "SBI", "HDFC", "ICICI", "Axis", "Kotak", "Other"
+    val creditLimit: Double,
+    val billingCycleDate: Int, // e.g. 15 for 15th
+    val paymentDueDate: Int, // e.g. 3 for 3rd of following month
+    val interestRate: Double? = null, // optional manual interest override rate %
+    val colorHex: String = "#FF1A237E" // default Indigo-ish
+)
+
+@Entity(tableName = "credit_card_repayments")
+data class CreditCardRepayment(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val creditCardId: Int,
+    val amount: Double,
+    val timestamp: Long,
+    val paymentSource: String, // "Cash", "Bank"
     val notes: String = ""
 )
+
 

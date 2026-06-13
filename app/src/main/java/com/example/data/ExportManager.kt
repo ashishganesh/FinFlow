@@ -333,7 +333,8 @@ object ExportManager {
 
         // Write outputs
         return try {
-            val file = File(context.cacheDir, "Financial_Report_${accountName.replace(" ", "_")}.pdf")
+            val dateSuffix = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
+            val file = File(context.cacheDir, "FinTrackerPro_Report_$dateSuffix.pdf")
             val outputStream = FileOutputStream(file)
             document.writeTo(outputStream)
             outputStream.flush()
@@ -390,7 +391,8 @@ object ExportManager {
         }
 
         return try {
-            val file = File(context.cacheDir, "Financial_Report_${accountName.replace(" ", "_")}.xls")
+            val dateSuffix = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
+            val file = File(context.cacheDir, "FinTrackerPro_Report_$dateSuffix.xls")
             val outputStream = FileOutputStream(file)
             outputStream.write(xlsContent.toString().toByteArray(Charsets.UTF_8))
             outputStream.flush()

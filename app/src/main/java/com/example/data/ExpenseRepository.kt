@@ -169,4 +169,58 @@ class ExpenseRepository(private val expenseDao: ExpenseDao) {
     fun getAllPayments(): Flow<List<DebtPayment>> {
         return expenseDao.getAllPayments()
     }
+
+    // --- CREDIT CARDS ---
+    fun getAllCreditCards(): Flow<List<CreditCard>> {
+        return expenseDao.getAllCreditCards()
+    }
+
+    fun getCreditCardsForAccount(accountId: Int): Flow<List<CreditCard>> {
+        return expenseDao.getCreditCardsForAccount(accountId)
+    }
+
+    suspend fun getCreditCardById(id: Int): CreditCard? {
+        return expenseDao.getCreditCardById(id)
+    }
+
+    suspend fun insertCreditCard(card: CreditCard): Long {
+        return expenseDao.insertCreditCard(card)
+    }
+
+    suspend fun updateCreditCard(card: CreditCard) {
+        expenseDao.updateCreditCard(card)
+    }
+
+    suspend fun deleteCreditCard(card: CreditCard) {
+        expenseDao.deleteCreditCard(card)
+    }
+
+    suspend fun deleteCreditCardsByAccount(accountId: Int) {
+        expenseDao.deleteCreditCardsByAccount(accountId)
+    }
+
+    // --- CREDIT CARD REPAYMENTS ---
+    fun getRepaymentsForCard(creditCardId: Int): Flow<List<CreditCardRepayment>> {
+        return expenseDao.getRepaymentsForCard(creditCardId)
+    }
+
+    suspend fun getRepaymentsForCardDirect(creditCardId: Int): List<CreditCardRepayment> {
+        return expenseDao.getRepaymentsForCardDirect(creditCardId)
+    }
+
+    fun getAllCreditCardRepayments(): Flow<List<CreditCardRepayment>> {
+        return expenseDao.getAllCreditCardRepayments()
+    }
+
+    suspend fun insertCreditCardRepayment(repayment: CreditCardRepayment): Long {
+        return expenseDao.insertCreditCardRepayment(repayment)
+    }
+
+    suspend fun deleteCreditCardRepayment(repayment: CreditCardRepayment) {
+        expenseDao.deleteCreditCardRepayment(repayment)
+    }
+
+    suspend fun deleteRepaymentsByCardId(creditCardId: Int) {
+        expenseDao.deleteRepaymentsByCardId(creditCardId)
+    }
 }

@@ -52,9 +52,34 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
     }
 }
 
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `debt_payments` ADD COLUMN `isAddition` INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `credit_cards` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `accountId` INTEGER NOT NULL, `cardName` TEXT NOT NULL, `cardIssuer` TEXT NOT NULL, `creditLimit` REAL NOT NULL, `billingCycleDate` INTEGER NOT NULL, `paymentDueDate` INTEGER NOT NULL, `interestRate` REAL, `colorHex` TEXT NOT NULL)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `credit_card_repayments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `creditCardId` INTEGER NOT NULL, `amount` REAL NOT NULL, `timestamp` INTEGER NOT NULL, `paymentSource` TEXT NOT NULL, `notes` TEXT NOT NULL)")
+        db.execSQL("ALTER TABLE `transactions` ADD COLUMN `creditCardId` INTEGER DEFAULT NULL")
+    }
+}
+
 @Database(
-    entities = [Account::class, Transaction::class, Budget::class, SavingsGoal::class, DebtEntry::class, SavingsGoalHistory::class, TransactionItem::class, DebtPayment::class],
-    version = 8,
+    entities = [
+        Account::class,
+        Transaction::class,
+        Budget::class,
+        SavingsGoal::class,
+        DebtEntry::class,
+        SavingsGoalHistory::class,
+        TransactionItem::class,
+        DebtPayment::class,
+        CreditCard::class,
+        CreditCardRepayment::class
+    ],
+    version = 10,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -72,7 +97,17 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "expense_tracker_database"
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                .addMigrations(
+                    MIGRATION_1_2,
+                    MIGRATION_2_3,
+                    MIGRATION_3_4,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6,
+                    MIGRATION_6_7,
+                    MIGRATION_7_8,
+                    MIGRATION_8_9,
+                    MIGRATION_9_10
+                )
                 .build()
                 INSTANCE = instance
                 instance
